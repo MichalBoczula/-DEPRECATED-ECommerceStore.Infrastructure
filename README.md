@@ -12,7 +12,7 @@ the independent backend and OIDC integration in D/2. Full apply/destroy/reapply
 and residual-cost verification belong to D/18; this initial skeleton is not
 evidence of tested Azure destruction. D/2 adds a manual backend verification
 workflow and the one-subscription retained-group contract below. Its dedicated
-bootstrap repository is ECommerceStore.TerraformState; live setup is pending.
+foundation repository is [ECommerceStore.TerraformState](https://github.com/MichalBoczula/ECommerceStore.TerraformState); live Azure setup is pending.
 
 ## One-subscription teardown contract
 
@@ -31,7 +31,8 @@ See [ADR 0001](docs/adr/0001-one-subscription-bootstrap-and-teardown.md).
 
 ## Verify D/2
 
-After applying the dedicated bootstrap, migrating its state and configuring
+After creating the independent state store outside Terraform, applying the
+persistent identity foundation against that remote backend and configuring
 GitHub, run **Actions → Verify development backend → Run workflow** on `main`.
 It verifies OIDC authentication, remote init, locked planning, a no-change apply
 and remote state read. It rejects plans with managed-resource changes; the
@@ -66,7 +67,7 @@ identifiers, not client secrets.
 | `AZURE_CLIENT_ID` | Persistent deployment identity client/application ID |
 | `AZURE_TENANT_ID` | Microsoft Entra tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Development subscription ID |
-| `TFSTATE_RESOURCE_GROUP` | Independent bootstrap resource group |
+| `TFSTATE_RESOURCE_GROUP` | Independent state-storage resource group |
 | `TFSTATE_STORAGE_ACCOUNT` | Existing remote state account |
 | `TFSTATE_CONTAINER` | Exactly `development-state` |
 
@@ -76,8 +77,10 @@ Audience: `api://AzureADTokenExchange`.
 Restrict the GitHub environment's deployment branches to `main`.
 No required reviewer or additional approval gate is introduced by this task.
 
-The bootstrap repository must keep its state storage, container, deployment
-identity and federation outside the application state. Give the identity
+The state account and containers are created once outside Terraform. The
+foundation repository reads that existing account as data and manages the
+persistent deployment identity, federation and access assignments in a separate
+remote state. All of them remain outside the application state. Give the identity
 `Storage Blob Data Contributor` on the development state container and `Reader`
 on the state account for the final existence check. The custom management role
 is assigned only on the retained application group. Application role-assignment
