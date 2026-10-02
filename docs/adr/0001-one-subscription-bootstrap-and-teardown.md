@@ -5,15 +5,20 @@ Status: Accepted by the user on 2026-10-02.
 ## Context
 
 The portfolio must use one Azure subscription, an independent Terraform state
-repository, passwordless CI deployment and disposable application resources.
+store created outside Terraform, passwordless CI deployment and disposable
+application resources. A separate foundation code repository is used for the
+persistent deployment identity and scoped access.
 Subscription-wide Contributor would include backend resource-management access.
 RG-scoped access disappears if its resource group is deleted, so it cannot
 independently recreate the next environment using the same narrow permissions.
 
 ## Decision
 
-`ECommerceStore.TerraformState` owns the state storage, persistent OIDC deployment
-identity, an empty `rg-ecommerce-dev` and RG-scoped access assignments. The app
+The Azure state account and containers are created once outside Terraform.
+`ECommerceStore.TerraformState` reads the existing account as data and owns the
+persistent OIDC identity in `rg-ecommerce-bootstrap`, an empty `rg-ecommerce-dev`
+and scoped access assignments. Its Terraform state uses the pre-existing Azure
+backend directly, with no local-state migration. The app
 state owns its children. The custom management role excludes deletion of the
 group and access-management/lock writes. Backend account management is Reader;
 state data permissions are limited to `development-state`. Bootstrap's own
@@ -29,7 +34,8 @@ backend survive. A rebuild does not require subscription-wide deployment grants
 or a privileged resource-group recreation step.
 
 The empty group is a deliberate lifecycle exception, not a running service.
-State storage and retained blob versions still have a small persistent footprint.
+State storage retains a small persistent footprint. Backup versioning and a
+recovery runbook are deferred to a later task.
 Portfolio will receive a different group/container/identity during P/2.
 Subscription-level operations such as provider registration and budget setup
 must be performed by the bootstrap operator. No paid networking or gateway is
