@@ -47,18 +47,21 @@ terraform state list >"$work_dir/resources.txt" 2>"$work_dir/state.log"
 phase=resource-group-verification
 az group exists --name rg-ecommerce-dev --subscription "$ARM_SUBSCRIPTION_ID" \
   --output tsv >"$work_dir/group.txt" 2>"$work_dir/group.log"
-[[ $(tr -d '\r\n' <"$work_dir/group.txt") == false ]]
+[[ $(tr -d '\r\n' <"$work_dir/group.txt") == true ]]
+az resource list --resource-group rg-ecommerce-dev --subscription "$ARM_SUBSCRIPTION_ID" \
+  --query 'length(@)' --output tsv >"$work_dir/children.txt" 2>"$work_dir/children.log"
+[[ $(tr -d '\r\n' <"$work_dir/children.txt") == 0 ]]
 phase=backend-verification
 az storage account show --name "$TFSTATE_STORAGE_ACCOUNT" \
   --resource-group "$TFSTATE_RESOURCE_GROUP" --output none \
   >"$work_dir/backend.log" 2>&1
 
-printf 'Development destroy completed: %s planned deletions; state empty; application resource group absent; state storage account retained.\n' "$delete_count"
+printf 'Development destroy completed: %s planned deletions; state empty; retained application group empty; state storage account retained.\n' "$delete_count"
 if [[ -n ${GITHUB_STEP_SUMMARY:-} ]]; then
   {
     printf '### Development teardown\n\n'
     printf -- '- Planned deletions: %s\n' "$delete_count"
-    printf -- '- Terraform state: empty\n- rg-ecommerce-dev: absent\n- Independent state storage account: retained\n'
+    printf -- '- Terraform state: empty\n- rg-ecommerce-dev: retained, no child application resources\n- Independent state storage account: retained\n'
     printf '\nD/18 must also verify ACA managed groups, soft-deleted resources, retained backups and remaining billing.\n'
   } >>"$GITHUB_STEP_SUMMARY"
 fi

@@ -20,7 +20,7 @@ jobs:
       - name: Check shell syntax and teardown behavior without Azure
         shell: bash
         run: |
-          bash -n scripts/check-destroy-config.sh scripts/destroy-development.sh
+          bash -n scripts/*.sh
           python3 -m unittest discover -s tests -v
       - name: Set up pinned Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3

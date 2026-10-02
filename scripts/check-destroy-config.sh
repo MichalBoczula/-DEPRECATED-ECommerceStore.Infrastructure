@@ -15,6 +15,7 @@ for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
 done
 [[ $TFSTATE_STORAGE_ACCOUNT =~ ^[a-z0-9]{3,24}$ ]] || fail 'Invalid state storage account name.'
 [[ $TFSTATE_CONTAINER =~ ^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$ && $TFSTATE_CONTAINER != *--* ]] || fail 'Invalid state container name.'
+[[ $TFSTATE_CONTAINER == development-state ]] || fail 'Development must use its dedicated development-state container.'
 [[ $TFSTATE_RESOURCE_GROUP =~ ^[a-zA-Z0-9_.()-]{1,90}$ && $TFSTATE_RESOURCE_GROUP != *. ]] || fail 'Invalid bootstrap resource group name.'
 [[ ${TFSTATE_RESOURCE_GROUP,,} != rg-ecommerce-dev ]] || fail 'The state store must be outside rg-ecommerce-dev.'
 [[ ${TF_WORKSPACE:-default} == default ]] || fail 'Development uses the default workspace and its fixed dev state key.'
