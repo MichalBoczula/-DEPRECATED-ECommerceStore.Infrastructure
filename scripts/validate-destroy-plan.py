@@ -8,6 +8,7 @@ with open(sys.argv[1], encoding="utf-8") as source:
     plan = json.load(source)
 
 protected_group = "/resourcegroups/" + os.environ["TFSTATE_RESOURCE_GROUP"].lower()
+retained_group = "/resourcegroups/rg-ecommerce-dev"
 deletes = 0
 for resource in plan.get("resource_changes", []):
     if resource.get("mode") != "managed":
@@ -21,5 +22,7 @@ for resource in plan.get("resource_changes", []):
         resource_id = str(before.get("id", "")).lower().rstrip("/")
         if resource_id.endswith(protected_group) or protected_group + "/" in resource_id:
             sys.exit("Destroy plan rejected: bootstrap resource group must survive.")
+        if resource_id.endswith(retained_group):
+            sys.exit("Destroy plan rejected: the empty development group is owned by bootstrap.")
         deletes += 1
 print(deletes)

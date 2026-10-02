@@ -24,10 +24,14 @@ if tool == "terraform":
         pathlib.Path(target).write_text("saved complete destroy plan")
     elif operation == "show":
         print(os.environ["PLAN_JSON"])
+    elif operation == "state" and args[1:] == ["pull"]:
+        print(json.dumps({"lineage": "verified-test-lineage", "resources": []}))
     elif operation == "state" and os.environ.get("RESIDUAL_STATE"):
         print("azurerm_resource_group.remaining")
 elif tool == "az" and args[:2] == ["group", "exists"]:
-    print(os.environ.get("GROUP_EXISTS", "false"))
+    print(os.environ.get("GROUP_EXISTS", "true"))
+elif tool == "az" and args[:2] == ["resource", "list"]:
+    print(os.environ.get("CHILD_COUNT", "0"))
 '''
 
 
@@ -60,7 +64,7 @@ class DestroyTests(unittest.TestCase):
         self.temp.cleanup()
 
     def set_plan(self, actions, resource_id=None):
-        resource_id = resource_id or "/subscriptions/test/resourceGroups/rg-ecommerce-dev"
+        resource_id = resource_id or "/subscriptions/test/resourceGroups/rg-ecommerce-dev/providers/Microsoft.App/containerApps/bff"
         self.env["PLAN_JSON"] = json.dumps({"resource_changes": [{
             "mode": "managed", "change": {
                 "actions": actions, "before": {"id": resource_id}
@@ -106,6 +110,7 @@ class DestroyTests(unittest.TestCase):
             ("GITHUB_REF", "refs/heads/feature"),
             ("TF_WORKSPACE", "production"),
             ("TFSTATE_RESOURCE_GROUP", "RG-ECOMMERCE-DEV"),
+            ("TFSTATE_CONTAINER", "portfolio-state"),
         ):
             with self.subTest(key=key):
                 original = self.env[key]
@@ -139,20 +144,52 @@ class DestroyTests(unittest.TestCase):
     def test_tool_failures_propagate_without_printing_sensitive_logs(self):
         for operation in ("terraform:init", "terraform:validate", "terraform:plan",
                           "terraform:show", "terraform:apply", "terraform:state",
-                          "az:group", "az:storage"):
+                          "az:group", "az:resource", "az:storage"):
             with self.subTest(operation=operation):
                 self.env["FAIL_OPERATION"] = operation
                 result = self.run_destroy()
                 self.assertNotEqual(result.returncode, 0)
                 self.assertNotIn("SENSITIVE-RAW-DIAGNOSTIC", result.stdout + result.stderr)
 
-    def test_remaining_state_or_resource_group_fails_verification(self):
-        for key, value in (("RESIDUAL_STATE", "1"), ("GROUP_EXISTS", "true")):
+    def test_remaining_state_children_or_missing_group_fails_verification(self):
+        for key, value in (("RESIDUAL_STATE", "1"), ("GROUP_EXISTS", "false"), ("CHILD_COUNT", "1")):
             with self.subTest(key=key):
                 self.env[key] = value
                 result = self.run_destroy()
                 self.assertNotEqual(result.returncode, 0)
                 self.env.pop(key)
+
+    def test_retained_development_group_cannot_be_deleted(self):
+        self.set_plan(["delete"], "/subscriptions/test/resourceGroups/rg-ecommerce-dev")
+        result = self.run_destroy()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(any(call[:2] == ["terraform", "apply"] for call in self.calls()))
+
+    def run_verify(self):
+        return subprocess.run(["bash", str(ROOT / "scripts/verify-development-backend.sh")],
+                              env=self.env, capture_output=True, text=True)
+
+    def test_backend_verification_persists_empty_state_without_resource_changes(self):
+        self.env["PLAN_JSON"] = json.dumps({"resource_changes": []})
+        result = self.run_verify()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(["terraform", "state", "pull"], self.calls())
+        self.assertFalse(any("-destroy" in call for call in self.calls()))
+
+    def test_backend_verification_rejects_resource_changes_before_apply(self):
+        for actions in (["create"], ["delete"], ["update"]):
+            with self.subTest(actions=actions):
+                self.set_plan(actions)
+                result = self.run_verify()
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(any(call[:2] == ["terraform", "apply"] for call in self.calls()))
+
+    def test_backend_verification_failure_is_reported_without_sensitive_log(self):
+        self.env["PLAN_JSON"] = json.dumps({"resource_changes": []})
+        self.env["FAIL_OPERATION"] = "terraform:apply"
+        result = self.run_verify()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("SENSITIVE-RAW-DIAGNOSTIC", result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
