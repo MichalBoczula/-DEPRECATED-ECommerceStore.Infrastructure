@@ -79,7 +79,7 @@ via `vars`. Do not paste the whole JSON into one value. If the Azure IDs were
 previously added as variables, replace those entries with environment secrets.
 
 OIDC federation subject:
-`repo:MichalBoczula/ECommerceStore.Infrastructure:environment:development`.
+`repo:MichalBoczula@38834900/ECommerceStore.Infrastructure@1401844464:environment:development`.
 Audience: `api://AzureADTokenExchange`.
 Restrict the GitHub environment's deployment branches to `main`.
 No required reviewer or additional approval gate is introduced by this task.
