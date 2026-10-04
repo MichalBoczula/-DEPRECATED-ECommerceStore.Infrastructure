@@ -1,4 +1,20 @@
-mock_provider "azurerm" {}
+mock_provider "azurerm" {
+  mock_data "azurerm_client_config" {
+    defaults = {
+      object_id = "33333333-3333-3333-3333-333333333333"
+    }
+  }
+  mock_resource "azurerm_resource_group" {
+    defaults = {
+      id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-ecommerce-livedocs-archive"
+    }
+  }
+  mock_resource "azurerm_storage_account" {
+    defaults = {
+      id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-ecommerce-livedocs-archive/providers/Microsoft.Storage/storageAccounts/stecomldtest"
+    }
+  }
+}
 variables {
   subscription_id             = "11111111-1111-1111-1111-111111111111"
   infrastructure_principal_id = "22222222-2222-2222-2222-222222222222"
