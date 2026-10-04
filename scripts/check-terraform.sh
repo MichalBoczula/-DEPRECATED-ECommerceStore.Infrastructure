@@ -7,6 +7,8 @@ export TF_IN_AUTOMATION=true TF_INPUT=false TF_WORKSPACE=default TF_LOG=OFF
 unset TF_LOG_PATH TF_CLI_ARGS TF_CLI_ARGS_init TF_CLI_ARGS_test
 work_dir=$(mktemp -d)
 trap 'rm -rf -- "$work_dir"' EXIT
+mkdir "$work_dir/plugin-cache"
+export TF_PLUGIN_CACHE_DIR="$work_dir/plugin-cache"
 
 terraform fmt -check -recursive
 for root in modules/deployment-context environments/development; do
@@ -28,6 +30,20 @@ for root in modules/deployment-context environments/development; do
   (( status == 0 )) || { echo '::error::Terraform test failed.' >&2; exit "$status"; }
 done
 
-terraform -chdir=environments/development providers schema -json \
+# `providers schema` requires backend initialization even after init -backend=false.
+# Audit the same locked packages in a private root with no backend or resources.
+audit_dir="$work_dir/provider-audit"
+mkdir "$audit_dir"
+cp environments/development/.terraform.lock.hcl "$audit_dir/.terraform.lock.hcl"
+cat >"$audit_dir/versions.tf" <<'HCL'
+terraform {
+  required_providers {
+    azurerm = { source = "hashicorp/azurerm" }
+    azapi   = { source = "Azure/azapi" }
+  }
+}
+HCL
+terraform -chdir="$audit_dir" init -backend=false -input=false -lockfile=readonly
+terraform -chdir="$audit_dir" providers schema -json \
   >"$work_dir/providers.json"
 python3 scripts/check-provider-schema.py "$work_dir/providers.json"
