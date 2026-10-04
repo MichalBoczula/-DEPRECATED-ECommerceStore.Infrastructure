@@ -21,7 +21,14 @@ that PR's successful main publication metadata.
 
 D/2's three Azure ID secrets and three backend variables remain unchanged.
 Use the existing TerraformState deployment identity's **principal/object ID**,
-not its client ID. Read it from the applied foundation state or Azure Portal.
+not its client ID. Read it from the applied TerraformState repository:
+
+```powershell
+# In your initialized ECommerceStore.TerraformState checkout:
+terraform output -raw development_principal_id
+```
+
+Or query the existing identity in Azure Portal.
 The operator needs resource management and role-assignment privileges for the
 archive root and Blob Data Contributor on the independent state store.
 
