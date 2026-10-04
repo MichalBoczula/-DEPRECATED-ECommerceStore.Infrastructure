@@ -13,17 +13,23 @@ e-commerce store. The separate portfolio deployment belongs to
 - **D/3:** development root, reusable naming/tag module, provider pins and
   Windows/Linux checksums, offline PR plan summaries and module version publication.
 
-No application resources are declared yet. Full application
-apply/destroy/reapply and residual-cost verification belong to D/18. The
+- **D/4:** shared Consumption environment and stateless LiveDocs app, manual
+  saved-plan deployment, persistent private archive root and protected teardown.
+  Live Azure apply/destroy/reapply evidence is still pending; follow the
+  [LiveDocs setup runbook](docs/livedocs-deployment.md).
+
+Full application
+apply/destroy/reapply and residual-cost verification belong to D/19. The
 persistent foundation lives in
 [ECommerceStore.TerraformState](https://github.com/MichalBoczula/ECommerceStore.TerraformState).
 
 ## Structure and versioning
 
 `environments/development` is the application root. `modules/deployment-context`
-provides reusable names and tags without Azure resources or credentials. Future
-ACA, database, storage and frontend modules will be added when their deployment
-tasks are ready. See [module usage and versioning](modules/README.md) and the
+provides reusable names and tags without Azure resources or credentials. `modules/consumption-environment` owns the VNet/subnet/shared ACA environment;
+`modules/livedocs` owns the documentation host and its immutable image. The
+persistent archive lives in a separate `foundations/livedocs` root/state.
+Database, business services and frontend remain later deployment tasks. See [module usage and versioning](modules/README.md) and the
 [ADR index](docs/adr/README.md).
 
 Terraform is pinned to `1.16.5`, AzureRM to `5.8.0` and AzAPI to `2.13.0`.
@@ -31,20 +37,20 @@ The committed root lock file includes Windows and Linux checksums. AzureRM
 automatic provider registration is disabled because registration is a foundation
 operator responsibility. AzAPI is reserved for Azure SQL Free properties that
 this AzureRM version does not expose. Database eligibility and application
-compatibility still need D/5 and D/7; see the
+compatibility still need D/6 and D/8; see the
 [provider capability audit](docs/provider-capabilities.md).
 
 Every PR runs credential-free Terraform validation and mock plan tests on Linux
 and Windows. Linux job summaries show resource action counts and output names,
 without raw plan values. These are **offline configuration previews**; they do
 not inspect live Azure state or establish what a real deployment will change.
-Authenticated plan/apply workflows come later. PR jobs receive no Azure IDs,
+LiveDocs has a main-only manual plan/apply workflow; pushes cannot deploy it. PR jobs receive no Azure IDs,
 OIDC permission or backend access.
 
 After a merge, successful `Terraform CI` on `main` triggers **Publish module
 version**, which creates `modules-v<modules/VERSION>` at the tested commit.
-The first configured version is `0.1.0`; its tag becomes available after the
-D/3 merge and successful main CI. Existing tags are never moved. Module changes
+`modules-v0.1.0` is published. D/4 proposes `0.2.0`; that tag publishes only
+after merge and successful main CI. Existing tags are never moved. Module changes
 require a version bump. Portfolio roots will consume a published tag rather
 than `main`.
 
@@ -71,7 +77,7 @@ GitHub, run **Actions → Verify development backend → Run workflow** on `main
 It verifies OIDC authentication, remote init, locked planning, a no-change apply
 and remote state read. It rejects plans with managed-resource changes; the
 initial empty state is persisted without placeholder Azure resources.
-Both lifecycle workflows share concurrency group `terraform-development`.
+All application lifecycle workflows share concurrency group `terraform-development`.
 
 ## Run the destroy button
 
@@ -108,7 +114,7 @@ Store the three backend settings as **environment variables**.
 | `TFSTATE_STORAGE_ACCOUNT` | Environment variables | Existing remote state account |
 | `TFSTATE_CONTAINER` | Environment variables | Exactly `development-state` |
 
-Both lifecycle workflows read Azure IDs via `secrets` and backend settings
+All application lifecycle workflows read Azure IDs via `secrets` and backend settings
 via `vars`. Do not paste the whole JSON into one value. If the Azure IDs were
 previously added as variables, replace those entries with environment secrets.
 
@@ -125,7 +131,7 @@ remote state. All of them remain outside the application state. Give the identit
 `Storage Blob Data Contributor` on the development state container and `Reader`
 on the state account for the final existence check. The custom management role
 is assigned only on the retained application group. Application role-assignment
-delegation stays disabled until D/7 needs specific data roles.
+delegation stays disabled until D/8 needs specific data roles.
 It must have no management permission to delete bootstrap resources. If dev
 and portfolio share an account, prefer distinct containers for data-plane RBAC;
 their blob keys and Terraform states must also be distinct.
@@ -166,7 +172,7 @@ published application images or the independent backend. Empty-state reruns
 are allowed. A partially failed apply is cleaned up from its recorded state;
 untracked resources require explicit investigation and reconciliation.
 
-The current verification does not prove zero cost: D/18 must inspect ACA
+The current verification does not prove zero cost: D/19 must inspect ACA
 managed resource groups, soft-deleted Key Vault/storage resources, retained
 backups and other billable remnants. Future Terraform resources must be removed
 using their original provider/module configuration, including credentials and
@@ -205,8 +211,19 @@ terraform -chdir=environments/development init -backend=false -input=false -upgr
 terraform -chdir=environments/development providers lock -platform=linux_amd64 -platform=windows_amd64
 ```
 
-Next: D/4 inventories application images, ports, configuration and dependencies;
-D/5 checks the database choices against actual application behavior.
+Next: D/5 inventories application images, ports, configuration and dependencies;
+D/6 checks database choices against actual application behavior. D/9 adds the
+five business apps to this shared environment. LiveDocs publishes an image
+only; Infrastructure owns its Azure deployment and image updates.
+
+D/4 adds environment variables `LIVEDOCS_ENABLED=true` and
+`LIVEDOCS_ARCHIVE_STORAGE_ACCOUNT` after archive setup. No additional LiveDocs
+Azure identity or secret is required. The archive root is operator-only and
+never called by application deployment or destroy. The app identity has Reader
+on the archive account for retention checks and no archive data access.
+Custom ACA networking adds platform-managed networking charges; scale-to-zero
+does not make a custom VNet deployment wholly free. See the runbook for the
+manual lifecycle and residual-resource audit.
 
 ## References
 

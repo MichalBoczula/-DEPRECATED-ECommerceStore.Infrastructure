@@ -1,16 +1,18 @@
 # Reusable Terraform modules
 
-Current module: [deployment-context](deployment-context/README.md), a
-provider-free naming and tagging contract shared by development and portfolio.
-Resource modules will be added during the corresponding ACA, storage, database
-and web deployment tasks. D/3 intentionally creates no application resources.
+Modules: [deployment-context](deployment-context/README.md),
+[consumption-environment](consumption-environment/README.md) and
+[livedocs](livedocs/README.md). Development tests these together using local
+sources. The ACA environment is shared by LiveDocs now and the five business
+apps in D/9. Persistent archive storage is a separate operator root, not a
+module in application state.
 
 ## Version contract
 
-`modules/VERSION` versions all modules together. The initial version is `0.1.0`.
+`modules/VERSION` versions all modules together. D/4 proposes version `0.2.0`.
 Successful main-branch Terraform CI triggers tag publication at that exact tested
-commit. The initial `modules-v0.1.0` tag is available only after D/3 is merged and
-main CI and publication succeed. The publisher has repository contents write
+commit. `modules-v0.1.0` is published. The new tag becomes available after D/4 is
+merged and its main CI and publication succeed. The publisher has repository contents write
 permission and no Azure access. It never overwrites a tag.
 
 Change module files and bump `modules/VERSION` in the same PR. If a version

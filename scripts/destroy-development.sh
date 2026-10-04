@@ -55,6 +55,14 @@ phase=backend-verification
 az storage account show --name "$TFSTATE_STORAGE_ACCOUNT" \
   --resource-group "$TFSTATE_RESOURCE_GROUP" --output none \
   >"$work_dir/backend.log" 2>&1
+if [[ -n ${LIVEDOCS_ARCHIVE_STORAGE_ACCOUNT:-} ]]; then
+  phase=archive-verification
+  [[ $LIVEDOCS_ARCHIVE_STORAGE_ACCOUNT =~ ^[a-z0-9]{3,24}$ ]]
+  az storage account show --name "$LIVEDOCS_ARCHIVE_STORAGE_ACCOUNT" \
+    --resource-group rg-ecommerce-livedocs-archive --subscription "$ARM_SUBSCRIPTION_ID" \
+    --output none >"$work_dir/archive.log" 2>&1
+  printf 'Persistent LiveDocs archive account retained.\n'
+fi
 
 printf 'Development destroy completed: %s planned deletions; state empty; retained application group empty; state storage account retained.\n' "$delete_count"
 if [[ -n ${GITHUB_STEP_SUMMARY:-} ]]; then
@@ -62,6 +70,7 @@ if [[ -n ${GITHUB_STEP_SUMMARY:-} ]]; then
     printf '### Development teardown\n\n'
     printf -- '- Planned deletions: %s\n' "$delete_count"
     printf -- '- Terraform state: empty\n- rg-ecommerce-dev: retained, no child application resources\n- Independent state storage account: retained\n'
-    printf '\nD/18 must also verify ACA managed groups, soft-deleted resources, retained backups and remaining billing.\n'
+    if [[ -n ${LIVEDOCS_ARCHIVE_STORAGE_ACCOUNT:-} ]]; then printf -- '- Persistent LiveDocs archive account: retained\n'; fi
+    printf '\nD/19 must also verify ACA managed groups, soft-deleted resources, retained backups and remaining billing.\n'
   } >>"$GITHUB_STEP_SUMMARY"
 fi

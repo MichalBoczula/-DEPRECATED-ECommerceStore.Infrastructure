@@ -8,3 +8,5 @@
 Future gateway, private networking, authentication and warehouse decisions
 belong to their iterations. The development MVP currently prioritizes minimal
 cost, with no paid gateway or private endpoints.
+
+- [0003: Application-owned LiveDocs deployment](0003-livedocs-application-owned-deployment.md)
