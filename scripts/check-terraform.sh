@@ -20,6 +20,7 @@ for root in modules/deployment-context modules/consumption-environment modules/l
     >"$work_dir/$label.jsonl" 2>"$work_dir/$label.log" || status=$?
   if ! python3 scripts/render-test-plans.py "$work_dir/$label.jsonl" "$root" \
     >"$work_dir/$label.md"; then
+    python3 scripts/report-test-failure.py "$work_dir/$label.jsonl"
     echo '::error::Offline Terraform tests failed; raw plan values and diagnostics are withheld.' >&2
     exit 1
   fi

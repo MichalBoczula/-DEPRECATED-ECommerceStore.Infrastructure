@@ -1,4 +1,5 @@
 mock_provider "azurerm" {
+  override_during = plan
   mock_data "azurerm_client_config" {
     defaults = {
       object_id = "33333333-3333-3333-3333-333333333333"
