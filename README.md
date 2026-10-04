@@ -175,7 +175,7 @@ any required variable values; do not delete configuration before teardown.
 ## Local checks
 
 ```bash
-bash -n scripts/*.sh
+for script in scripts/*.sh; do bash -n "$script"; done
 python3 -m unittest discover -s tests -v
 bash scripts/check-terraform.sh
 ```
