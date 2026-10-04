@@ -12,3 +12,6 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 __pycache__/
+backend.hcl
+*.tfbackend
+!*.tfbackend.example
