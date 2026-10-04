@@ -58,18 +58,25 @@ destroyed environment automatically.
 
 ## D/2 configuration contract
 
-Create a GitHub environment called `development` and set these **variables**
-from the independent bootstrap repository's outputs. They are configuration
-identifiers, not client secrets.
+Create a GitHub environment called `development` and add each value separately
+from the foundation repository's `development_github_variables` output.
+Store the three Azure IDs as **environment secrets** to keep their values
+hidden and masked in workflow logs, as requested by the user. They are
+identifiers rather than client passwords; Azure authentication still uses OIDC.
+Store the three backend settings as **environment variables**.
 
-| Variable | Meaning |
-| --- | --- |
-| `AZURE_CLIENT_ID` | Persistent deployment identity client/application ID |
-| `AZURE_TENANT_ID` | Microsoft Entra tenant ID |
-| `AZURE_SUBSCRIPTION_ID` | Development subscription ID |
-| `TFSTATE_RESOURCE_GROUP` | Independent state-storage resource group |
-| `TFSTATE_STORAGE_ACCOUNT` | Existing remote state account |
-| `TFSTATE_CONTAINER` | Exactly `development-state` |
+| Name | GitHub location | Meaning |
+| --- | --- | --- |
+| `AZURE_CLIENT_ID` | Environment secrets | Persistent deployment identity client/application ID |
+| `AZURE_TENANT_ID` | Environment secrets | Microsoft Entra tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | Environment secrets | Development subscription ID |
+| `TFSTATE_RESOURCE_GROUP` | Environment variables | Independent state-storage resource group |
+| `TFSTATE_STORAGE_ACCOUNT` | Environment variables | Existing remote state account |
+| `TFSTATE_CONTAINER` | Environment variables | Exactly `development-state` |
+
+Both lifecycle workflows read Azure IDs via `secrets` and backend settings
+via `vars`. Do not paste the whole JSON into one value. If the Azure IDs were
+previously added as variables, replace those entries with environment secrets.
 
 OIDC federation subject:
 `repo:MichalBoczula/ECommerceStore.Infrastructure:environment:development`.
