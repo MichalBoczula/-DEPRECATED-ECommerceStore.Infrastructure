@@ -1,4 +1,4 @@
-name: Check destroy workflow
+name: Terraform CI
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -20,17 +20,37 @@ jobs:
       - name: Check shell syntax and teardown behavior without Azure
         shell: bash
         run: |
-          bash -n scripts/*.sh
+          for script in scripts/*.sh; do bash -n "$script"; done
           python3 -m unittest discover -s tests -v
       - name: Set up pinned Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:
           terraform_version: 1.16.5
           terraform_wrapper: false
-      - name: Check Terraform without the remote backend
+      - name: Validate Terraform and produce offline review plans
         shell: bash
-        working-directory: environments/development
+        run: bash scripts/check-terraform.sh
+
+  windows:
+    name: Windows Terraform compatibility
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up pinned Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: 1.16.5
+          terraform_wrapper: false
+      - name: Check Windows provider checksums and mock plans
+        shell: pwsh
         run: |
-          terraform fmt -check
-          terraform init -backend=false -input=false
-          terraform validate
+          terraform "-chdir=environments/development" init -backend=false -input=false -lockfile=readonly
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          terraform "-chdir=environments/development" validate
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          terraform "-chdir=environments/development" test "-test-directory=tests"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

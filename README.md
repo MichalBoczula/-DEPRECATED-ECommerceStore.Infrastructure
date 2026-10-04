@@ -4,15 +4,49 @@ Terraform infrastructure for the low-cost development deployment of the
 e-commerce store. The separate portfolio deployment belongs to
 [ECommerceStore.Infrastructure.Production](https://github.com/MichalBoczula/ECommerceStore.Infrastructure.Production).
 
-## D/1 and D/2 status
+## Deployment status
 
-The manual **Destroy development environment** workflow is implemented on
-`main`. No application resources are declared yet. Azure execution requires
-the independent backend and OIDC integration in D/2. Full apply/destroy/reapply
-and residual-cost verification belong to D/18; this initial skeleton is not
-evidence of tested Azure destruction. D/2 adds a manual backend verification
-workflow and the one-subscription retained-group contract below. Its dedicated
-foundation repository is [ECommerceStore.TerraformState](https://github.com/MichalBoczula/ECommerceStore.TerraformState); live Azure setup is pending.
+- **D/1:** manual destroy workflow with scope checks and teardown verification.
+- **D/2:** independent state store and identity foundation configured. The
+  [live backend verification](https://github.com/MichalBoczula/ECommerceStore.Infrastructure/actions/runs/37235189600)
+  passed; the operator reports the lifecycle checks passed.
+- **D/3:** development root, reusable naming/tag module, provider pins and
+  Windows/Linux checksums, offline PR plan summaries and module version publication.
+
+No application resources are declared yet. Full application
+apply/destroy/reapply and residual-cost verification belong to D/18. The
+persistent foundation lives in
+[ECommerceStore.TerraformState](https://github.com/MichalBoczula/ECommerceStore.TerraformState).
+
+## Structure and versioning
+
+`environments/development` is the application root. `modules/deployment-context`
+provides reusable names and tags without Azure resources or credentials. Future
+ACA, database, storage and frontend modules will be added when their deployment
+tasks are ready. See [module usage and versioning](modules/README.md) and the
+[ADR index](docs/adr/README.md).
+
+Terraform is pinned to `1.16.5`, AzureRM to `5.8.0` and AzAPI to `2.13.0`.
+The committed root lock file includes Windows and Linux checksums. AzureRM
+automatic provider registration is disabled because registration is a foundation
+operator responsibility. AzAPI is reserved for Azure SQL Free properties that
+this AzureRM version does not expose. Database eligibility and application
+compatibility still need D/5 and D/7; see the
+[provider capability audit](docs/provider-capabilities.md).
+
+Every PR runs credential-free Terraform validation and mock plan tests on Linux
+and Windows. Linux job summaries show resource action counts and output names,
+without raw plan values. These are **offline configuration previews**; they do
+not inspect live Azure state or establish what a real deployment will change.
+Authenticated plan/apply workflows come later. PR jobs receive no Azure IDs,
+OIDC permission or backend access.
+
+After a merge, successful `Terraform CI` on `main` triggers **Publish module
+version**, which creates `modules-v<modules/VERSION>` at the tested commit.
+The first configured version is `0.1.0`; its tag becomes available after the
+D/3 merge and successful main CI. Existing tags are never moved. Module changes
+require a version bump. Portfolio roots will consume a published tag rather
+than `main`.
 
 ## One-subscription teardown contract
 
@@ -106,9 +140,8 @@ values are committed to this repository.
 - Use Terraform `1.16.5`, matching `.terraform-version` and the root constraint.
 - Initialize the remote Azure Blob backend using OIDC and Entra data-plane auth.
 - Keep the default workspace, remote state locking and a five-minute lock wait.
-- Use the pinned provider lock file without upgrades once providers are added
-  in D/3. Commit `.terraform.lock.hcl`; this initial backend-only root has no
-  provider dependencies or lock file yet.
+- Use the committed provider lock file with `-lockfile=readonly`; ordinary
+  lifecycle runs must not upgrade dependencies.
 - Generate `terraform plan -destroy`, reject create/update/replacement actions
   and planned deletes inside the bootstrap resource group or deletion of the
   retained application group itself, then apply that
@@ -142,17 +175,38 @@ any required variable values; do not delete configuration before teardown.
 ## Local checks
 
 ```bash
-bash -n scripts/*.sh
+for script in scripts/*.sh; do bash -n "$script"; done
 python3 -m unittest discover -s tests -v
-terraform -chdir=environments/development fmt -check
-terraform -chdir=environments/development init -backend=false -input=false
-terraform -chdir=environments/development validate
+bash scripts/check-terraform.sh
 ```
 
-Twelve tests use fake Terraform/Azure executables and never connect to Azure.
-They check scope isolation, protected bootstrap and retained-group resources,
-exact plan application, failure propagation, empty-state reruns, safe backend
-verification and residual-child failures.
+Use Terraform `1.16.5` on `PATH`. These checks download pinned providers but
+never authenticate to Azure. The Terraform tests check environment, naming and
+tag contracts; Python tests check lifecycle isolation, summary redaction and
+immutable module publication.
+
+In Windows PowerShell, run the root checks with quoted arguments:
+
+```powershell
+terraform "-chdir=environments/development" init -backend=false -input=false -lockfile=readonly
+terraform "-chdir=environments/development" validate
+terraform "-chdir=environments/development" test "-test-directory=tests"
+```
+
+Optional local settings start from `development.tfvars.example`. Copy it to
+`development.auto.tfvars` in the same directory; local variable and backend
+files are ignored. Defaults already match the development contract.
+
+For an intentional provider upgrade, update exact constraints, then regenerate
+the lock file and review the capability audit:
+
+```bash
+terraform -chdir=environments/development init -backend=false -input=false -upgrade
+terraform -chdir=environments/development providers lock -platform=linux_amd64 -platform=windows_amd64
+```
+
+Next: D/4 inventories application images, ports, configuration and dependencies;
+D/5 checks the database choices against actual application behavior.
 
 ## References
 

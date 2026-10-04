@@ -1,0 +1,7 @@
+# Non-secret configuration only. Copy to development.auto.tfvars if needed.
+# Resource eligibility and network compatibility remain gated by D/5-D/6.
+location    = "northeurope"
+name_prefix = "ecommerce"
+tags = {
+  owner = "portfolio"
+}
