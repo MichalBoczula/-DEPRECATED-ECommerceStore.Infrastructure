@@ -235,3 +235,6 @@ manual lifecycle and residual-resource audit.
 - [Terraform Azure backend and OIDC](https://developer.hashicorp.com/terraform/language/backend/azurerm)
 - [Terraform destroy plans](https://developer.hashicorp.com/terraform/cli/commands/destroy)
 - [GitHub manual workflow button](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)
+# D/6 database gate
+
+The optional Free SQL/DocumentDB candidate is disabled by default. Provision it through the manual candidate workflow, then run the Windows driver probe and destroy/recreate cycle in the [D/6 runbook](docs/database-compatibility-gate.md). PR CI provides a native positive control; Azure compatibility is pending operator evidence. All candidate resources use the existing disposable development state and destroy button.
