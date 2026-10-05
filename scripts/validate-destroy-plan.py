@@ -24,5 +24,8 @@ for resource in plan.get("resource_changes", []):
             sys.exit("Destroy plan rejected: bootstrap resource group must survive.")
         if resource_id.endswith(retained_group):
             sys.exit("Destroy plan rejected: the empty development group is owned by bootstrap.")
+        archive_group = "/resourcegroups/rg-ecommerce-livedocs-archive"
+        if resource_id.endswith(archive_group) or archive_group + "/" in resource_id:
+            sys.exit("Destroy plan rejected: the persistent LiveDocs archive must survive.")
         deletes += 1
 print(deletes)

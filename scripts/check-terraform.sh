@@ -11,7 +11,7 @@ mkdir "$work_dir/plugin-cache"
 export TF_PLUGIN_CACHE_DIR="$work_dir/plugin-cache"
 
 terraform fmt -check -recursive
-for root in modules/deployment-context environments/development; do
+for root in modules/deployment-context modules/consumption-environment modules/livedocs foundations/livedocs environments/development; do
   label=${root//\//-}
   terraform -chdir="$root" init -backend=false -input=false -lockfile=readonly
   terraform -chdir="$root" validate -no-color
@@ -20,6 +20,7 @@ for root in modules/deployment-context environments/development; do
     >"$work_dir/$label.jsonl" 2>"$work_dir/$label.log" || status=$?
   if ! python3 scripts/render-test-plans.py "$work_dir/$label.jsonl" "$root" \
     >"$work_dir/$label.md"; then
+    python3 scripts/report-test-failure.py "$work_dir/$label.jsonl"
     echo '::error::Offline Terraform tests failed; raw plan values and diagnostics are withheld.' >&2
     exit 1
   fi
@@ -29,6 +30,8 @@ for root in modules/deployment-context environments/development; do
   fi
   (( status == 0 )) || { echo '::error::Terraform test failed.' >&2; exit "$status"; }
 done
+
+python3 scripts/check-livedocs-release.py releases/livedocs.json
 
 # `providers schema` requires backend initialization even after init -backend=false.
 # Audit the same locked packages in a private root with no backend or resources.

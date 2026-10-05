@@ -14,5 +14,25 @@ module "context" {
   tags         = var.tags
 }
 
-# Resource modules are added in D/6-D/8 after D/4's release inventory and
-# D/5's free-database compatibility gate. Do not own the retained group here.
+locals {
+  livedocs_release = jsondecode(file("${path.module}/../../releases/livedocs.json"))
+}
+
+module "consumption" {
+  count               = var.enable_livedocs ? 1 : 0
+  source              = "../../modules/consumption-environment"
+  resource_group_name = local.retained_resource_group_name
+  name_prefix         = module.context.name_prefix
+  location            = var.location
+  tags                = module.context.tags
+}
+module "livedocs" {
+  count               = var.enable_livedocs ? 1 : 0
+  source              = "../../modules/livedocs"
+  resource_group_name = local.retained_resource_group_name
+  environment_id      = module.consumption[0].id
+  name                = "ca-${module.context.name_prefix}-livedocs"
+  image               = local.livedocs_release.image
+  tags                = module.context.tags
+}
+# Five business services join this environment in D/9 after the D/6 DB gate.

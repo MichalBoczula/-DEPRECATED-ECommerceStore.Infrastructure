@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "image": "mb0101/ecommerce-store-livedocs@sha256:cd8c941144d2bf0efd3ab78508a9f217221bb65fea5d10c0c775138561a87d76",
+  "commitSha": "a11d396ad01f1324569c69483e870fa8b9c23cf7",
+  "publicationRun": 37064030047,
+  "contractCommit": "4dba35af48a7729dc5fb68e1dd2985433d285035"
+}

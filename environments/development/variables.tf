@@ -8,6 +8,12 @@ variable "location" {
   }
 }
 
+variable "enable_livedocs" {
+  description = "Explicit D/4 deployment; false preserves the initial backend-only checks."
+  type        = bool
+  default     = false
+}
+
 variable "name_prefix" {
   description = "Short lowercase application prefix. This cannot change the retained group or backend."
   type        = string
