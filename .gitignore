@@ -15,3 +15,6 @@ __pycache__/
 backend.hcl
 *.tfbackend
 !*.tfbackend.example
+artifacts/database-gate/
+verification/database-gate/dotnet/bin/
+verification/database-gate/dotnet/obj/

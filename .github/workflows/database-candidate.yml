@@ -1,20 +1,25 @@
-name: Destroy development environment
-run-name: Destroy development requested by @${{ github.actor }}
+name: Provision database compatibility candidate
+run-name: Database candidate ${{ inputs.action }} requested by @${{ github.actor }}
 
 on:
   workflow_dispatch:
+    inputs:
+      action:
+        description: Review only or review and apply a fresh saved plan
+        required: true
+        default: plan
+        type: choice
+        options: [plan, apply]
 
 permissions:
   contents: read
 
-# Every future dev apply workflow MUST use this exact group too.
 concurrency:
   group: terraform-development
   cancel-in-progress: false
 
 jobs:
-  destroy:
-    name: Destroy complete development state
+  deploy:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     environment: development
@@ -22,6 +27,7 @@ jobs:
       contents: read
       id-token: write
     env:
+      DEPLOY_ACTION: ${{ inputs.action }}
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -31,12 +37,12 @@ jobs:
       TFSTATE_STORAGE_ACCOUNT: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}
       TFSTATE_CONTAINER: ${{ vars.TFSTATE_CONTAINER }}
       TF_VAR_enable_livedocs: ${{ vars.LIVEDOCS_ENABLED || 'false' }}
-      LIVEDOCS_ARCHIVE_STORAGE_ACCOUNT: ${{ vars.LIVEDOCS_ARCHIVE_STORAGE_ACCOUNT }}
       TF_VAR_enable_database_candidate: ${{ vars.DATABASE_CANDIDATE_ENABLED || 'false' }}
       TF_VAR_candidate_suffix: ${{ vars.DATABASE_CANDIDATE_SUFFIX || 'unconfigured' }}
       TF_VAR_candidate_operator_ipv4: ${{ vars.DATABASE_CANDIDATE_OPERATOR_IPV4 || '' }}
       TF_VAR_candidate_sql_password: ${{ secrets.DATABASE_CANDIDATE_SQL_PASSWORD }}
       TF_VAR_candidate_mongo_password: ${{ secrets.DATABASE_CANDIDATE_MONGO_PASSWORD }}
+      LIVEDOCS_ARCHIVE_STORAGE_ACCOUNT: ${{ vars.LIVEDOCS_ARCHIVE_STORAGE_ACCOUNT }}
       AZURE_CORE_OUTPUT: none
     steps:
       - name: Checkout the selected main commit
@@ -57,6 +63,6 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: Plan, destroy and verify development
+      - name: Review and optionally provision the Free database candidate
         shell: bash
-        run: bash scripts/destroy-development.sh
+        run: bash scripts/deploy-database-candidate.sh

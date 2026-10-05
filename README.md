@@ -242,3 +242,7 @@ plan to create them and read `products_livedocs_client_id`, `livedocs_reader_cli
 `livedocs_tenant_id` and `livedocs_subscription_id`. This does not deploy ACA or
 change application state. The `livedocs` container and its access roles remain separate from photos;
 a photos container can coexist in the same persistent account.
+
+# D/6 database gate
+
+The optional Free SQL/DocumentDB candidate is disabled by default. Provision it through the manual candidate workflow, then run the Windows driver probe and destroy/recreate cycle in the [D/6 runbook](docs/database-compatibility-gate.md). PR CI provides a native positive control; Azure compatibility is pending operator evidence. All candidate resources use the existing disposable development state and destroy button.

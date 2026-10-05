@@ -1,0 +1,30 @@
+[
+  {
+    "path": "verification/database-gate/contracts/ECommerceStoreUsers/MongoReadinessHealthCheck.cs",
+    "repository": "MichalBoczula/ECommerceStoreUsers",
+    "sourcePath": "src/ECommerceStoreUsers.Infrastructure/Health/MongoReadinessHealthCheck.cs",
+    "commitSha": "16c1b364df69f1db8b9addb78ff224908a63593c",
+    "sha256": "926863d9537a5fd7cf794c64b048a3cce2d59d73da5524ed150192ffa770ba44"
+  },
+  {
+    "path": "verification/database-gate/contracts/ECommerceStoreUsers/MongoDbSettings.cs",
+    "repository": "MichalBoczula/ECommerceStoreUsers",
+    "sourcePath": "src/ECommerceStoreUsers.Infrastructure/Configuration/MongoDbSettings.cs",
+    "commitSha": "16c1b364df69f1db8b9addb78ff224908a63593c",
+    "sha256": "f4e9a1bec1de3bf93dfd3a9e52c302e6188a87644c6b7bb153671d10d8d88d19"
+  },
+  {
+    "path": "verification/database-gate/contracts/ECommerceStoreInvoice/MongoReadinessHealthCheck.cs",
+    "repository": "MichalBoczula/ECommerceStoreInvoice",
+    "sourcePath": "src/ECommerceStoreInvoice.Infrastructure/Health/MongoReadinessHealthCheck.cs",
+    "commitSha": "76512ccf8c521cf3151830312acc5b82d2e31792",
+    "sha256": "168a3cf97dc130c1f3f603365e6ac216069f2494f18f5af377dd1d2787f08614"
+  },
+  {
+    "path": "verification/database-gate/contracts/ECommerceStoreInvoice/MongoDbSettings.cs",
+    "repository": "MichalBoczula/ECommerceStoreInvoice",
+    "sourcePath": "src/ECommerceStoreInvoice.Infrastructure/Configuration/MongoDbSettings.cs",
+    "commitSha": "76512ccf8c521cf3151830312acc5b82d2e31792",
+    "sha256": "a386e865c37b511af9a222f56aa5a6aa36f1956d0c6c2bdf46b61c061d4d7137"
+  }
+]

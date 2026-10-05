@@ -27,6 +27,7 @@ jobs:
       contents: read
       id-token: write
     env:
+      DATABASE_CANDIDATE_ENABLED: ${{ vars.DATABASE_CANDIDATE_ENABLED || 'false' }}
       DEPLOY_ACTION: ${{ inputs.action }}
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -45,7 +46,9 @@ jobs:
           persist-credentials: false
       - name: Check development scope and D2 configuration
         shell: bash
-        run: bash scripts/check-destroy-config.sh
+        run: |
+          bash scripts/check-destroy-config.sh
+          test "$DATABASE_CANDIDATE_ENABLED" = false || { echo "D/4 deploy is blocked while the D/6 candidate is enabled; complete candidate teardown first."; exit 1; }
       - name: Set up pinned Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:

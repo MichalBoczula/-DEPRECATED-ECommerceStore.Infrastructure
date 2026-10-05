@@ -1,0 +1,16 @@
+[
+  {
+    "name": "mongo",
+    "image": "mongo@sha256:91aa203a170fa068e626852cee51413c7cb33e50f74204b9d38f786cf186a32e",
+    "resolvedTag": "8.0",
+    "platform": "linux/amd64",
+    "resolvedOn": "2026-10-05"
+  },
+  {
+    "name": "sql",
+    "image": "mcr.microsoft.com/mssql/server@sha256:4402d880dd4c34bfa7d8705e56a86cd6c88da80a1f6bbbe741f999e76264a090",
+    "resolvedTag": "2022-latest",
+    "platform": "linux/amd64",
+    "resolvedOn": "2026-10-05"
+  }
+]

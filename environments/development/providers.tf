@@ -6,6 +6,6 @@ provider "azurerm" {
 }
 
 provider "azapi" {
-  # D/7 uses this only for SQL's explicit free-offer properties.
+  # D/6 uses this for SQL's explicit free-offer properties.
   enable_preflight = true
 }
