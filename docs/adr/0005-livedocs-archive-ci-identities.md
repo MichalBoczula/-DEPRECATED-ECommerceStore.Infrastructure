@@ -1,4 +1,4 @@
-# ADR-0004: CI identities for the persistent LiveDocs archive
+# ADR-0005: CI identities for the persistent LiveDocs archive
 
 - Status: Accepted for LD/5
 - Date: 2026-10-05
