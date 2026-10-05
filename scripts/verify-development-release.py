@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import urllib.error
 import urllib.request
 
 
@@ -33,8 +34,11 @@ opener = urllib.request.build_opener(SafeRedirect())
 
 def get(url, headers=None, limit=1024 * 1024):
     request = urllib.request.Request(url, headers={'User-Agent': 'ecommerce-release-verification', **(headers or {})})
-    with opener.open(request, timeout=30) as response:
-        data = response.read(limit + 1)
+    try:
+        with opener.open(request, timeout=30) as response:
+            data = response.read(limit + 1)
+    except urllib.error.HTTPError as error:
+        raise ValueError(f'Public response failed (HTTP {error.code}): {url}') from error
     if len(data) > limit:
         raise ValueError('Public response exceeds verification limit')
     return data
@@ -68,9 +72,6 @@ def verify_image(name, pin, root):
     manifest_bytes = get(prefix + '/manifests/' + digest, headers)
     if manifest_bytes != (root / 'evidence/registry' / (name + '.manifest.json')).read_bytes():
         raise ValueError('Registry bytes differ from pinned manifest: ' + name)
-    # Check the producer's full-SHA tag only as provenance; deploy by digest.
-    if get(prefix + '/manifests/' + pin['commitSha'], headers) != manifest_bytes:
-        raise ValueError('Producer SHA tag does not identify the reviewed image: ' + name)
     manifest = json.loads(manifest_bytes)
     config_bytes = get(prefix + '/blobs/' + manifest['config']['digest'], headers)
     if config_bytes != (root / 'evidence/registry' / (name + '.config.json')).read_bytes():

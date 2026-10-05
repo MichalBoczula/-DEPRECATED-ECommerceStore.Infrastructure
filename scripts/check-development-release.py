@@ -34,6 +34,8 @@ def check(root):
     require(release['status'] == 'inventory' and release['cloudValidated'] is False, 'D/5 cannot claim Azure acceptance')
     apps = release['applications']
     require(set(apps) == set(SOURCES), 'Expected five business apps, frontend and LiveDocs')
+    publications = json.loads((root / 'evidence/publications.json').read_text())
+    require(set(publications) == set(SOURCES), 'All image publication records required')
     manifests = {}
     configs = {}
     for name, (repo, branch, image) in SOURCES.items():
@@ -43,6 +45,11 @@ def check(root):
         require(re.fullmatch('mb0101/' + image + r'@sha256:[0-9a-f]{64}', pin['image']), name + ': immutable image required')
         for field in ('publicationRun', 'publicationJob'):
             require(type(pin[field]) is int and pin[field] > 0, name + ': publication provenance required')
+        publication = publications[name]
+        for field in ('repository', 'commitSha', 'image', 'publicationRun', 'publicationJob'):
+            require(publication[field] == pin[field], name + ': publication record differs from release')
+        match = re.fullmatch(r'[0-9TZ:.+-]+ ([a-f0-9]{40}): digest: (sha256:[a-f0-9]{64}) size: [0-9]+', publication['pushLogLine'])
+        require(match and match.group(1) == pin['commitSha'] and match.group(2) == pin['image'].split('@')[1], name + ': published push source/digest mismatch')
         manifest_bytes = (root / 'evidence/registry' / (name + '.manifest.json')).read_bytes()
         require(digest(manifest_bytes) == pin['image'].split('@')[1], name + ': image manifest checksum mismatch')
         manifest = json.loads(manifest_bytes)

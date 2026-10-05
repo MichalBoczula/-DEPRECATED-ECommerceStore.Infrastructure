@@ -25,3 +25,7 @@ This adds no Azure resource, paid image registry, gateway or authentication
 service. Public digest availability and CI evidence are checked, but signatures
 and long-term artifact retention require later decisions. Local-container
 compatibility evidence does not establish cloud database/Stripe/storage behavior.
+
+Commit-named Docker tags may be removed while a selected digest remains
+available. Preserve successful push-log provenance and verify the actual digest;
+do not make recreation depend on resolving those mutable tag names.

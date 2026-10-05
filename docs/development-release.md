@@ -173,6 +173,12 @@ python3 scripts/extract-frontend.py frontend-static-layer.tar.gz angular-output
 ```
 
 The normal PR gate is offline, credential-free and checks metadata consistency.
+The original successful image push log lines are retained in
+`releases/evidence/publications.json` and checked against source/digest/run/job
+records. Products' older commit-named tag is now absent although the exact digest
+is available. Publication evidence and recreation therefore use the recorded
+push provenance and immutable digest, without requiring a retained mutable tag.
+
 Public verification additionally needs Docker Hub and GitHub availability;
 rate limits or a removed digest fail the check rather than choose a replacement.
 Registry digests identify bytes but do not guarantee indefinite retention or

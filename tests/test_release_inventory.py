@@ -22,6 +22,7 @@ def load(name, file):
 
 check = load('inventory', 'check-development-release.py')
 extractor = load('artifact', 'extract-frontend.py')
+verifier = load('public_verifier', 'verify-development-release.py')
 
 
 class ReleaseTests(unittest.TestCase):
@@ -79,8 +80,11 @@ class ReleaseTests(unittest.TestCase):
         self.reject('final published layer')
 
     def test_livedocs_reapply_pin_cannot_drift(self):
-        self.release['applications']['livedocs']['commitSha'] = 'a' * 40
-        self.reject('Terraform reapply pin')
+        p = self.root / 'livedocs.json'
+        value = json.loads(p.read_text()); value['commitSha'] = 'a' * 40
+        p.write_text(json.dumps(value))
+        with self.assertRaisesRegex(ValueError, 'Terraform reapply pin'):
+            check.check(self.root)
 
     def test_internal_service_cannot_gain_external_ingress(self):
         self.release['applications']['invoice']['runtime']['ingress'] = 'external'
@@ -89,6 +93,31 @@ class ReleaseTests(unittest.TestCase):
     def test_module_source_cannot_change(self):
         self.release['infrastructure']['repository'] = 'someone/another-module'
         self.reject('Unexpected module source')
+
+    def test_publication_log_must_link_source_to_digest(self):
+        p = self.root / 'evidence/publications.json'
+        value = json.loads(p.read_text())
+        value['products']['pushLogLine'] = value['products']['pushLogLine'].replace(self.release['applications']['products']['commitSha'], 'a' * 40)
+        p.write_text(json.dumps(value))
+        with self.assertRaisesRegex(ValueError, 'published push source/digest mismatch'):
+            check.check(self.root)
+
+    def test_digest_remains_verifiable_without_retained_commit_tag(self):
+        pin = self.release['applications']['products']
+        repo, digest = pin['image'].split('@')
+        manifest_bytes = (self.root / 'evidence/registry/products.manifest.json').read_bytes()
+        config_bytes = (self.root / 'evidence/registry/products.config.json').read_bytes()
+        config_digest = json.loads(manifest_bytes)['config']['digest']
+        def get(url, headers=None, **kwargs):
+            if url.startswith('https://auth.docker.io/token?'):
+                return b'{"token":"anonymous-test-token"}'
+            if url.endswith('/manifests/' + digest):
+                return manifest_bytes
+            if url.endswith('/blobs/' + config_digest):
+                return config_bytes
+            raise AssertionError('Verification must not depend on mutable/removed tags')
+        with patch.object(verifier, 'get', side_effect=get), patch.object(verifier, 'verify_run'):
+            self.assertEqual(verifier.verify_image('products', pin, self.root), 'products')
 
     def test_no_azure_acceptance_claim(self):
         self.release['cloudValidated'] = True
