@@ -16,23 +16,21 @@ resource "azurerm_user_assigned_identity" "livedocs_archive_reader" {
 }
 
 resource "azurerm_federated_identity_credential" "products_archive_writer" {
-  name                = "github-products-master"
-  resource_group_name = azurerm_resource_group.archive.name
-  parent_id           = azurerm_user_assigned_identity.products_archive_writer.id
-  audience            = ["api://AzureADTokenExchange"]
-  issuer              = "https://token.actions.githubusercontent.com"
-  subject             = "repo:MichalBoczula/ProductsCatalog:ref:refs/heads/master"
+  name                      = "github-products-master"
+  user_assigned_identity_id = azurerm_user_assigned_identity.products_archive_writer.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = "https://token.actions.githubusercontent.com"
+  subject                   = "repo:MichalBoczula/ProductsCatalog:ref:refs/heads/master"
   lifecycle { prevent_destroy = true }
 }
 
 resource "azurerm_federated_identity_credential" "livedocs_archive_reader" {
-  for_each            = toset(["livedocs-archive-build", "livedocs-archive-pr"])
-  name                = "github-${each.value}"
-  resource_group_name = azurerm_resource_group.archive.name
-  parent_id           = azurerm_user_assigned_identity.livedocs_archive_reader.id
-  audience            = ["api://AzureADTokenExchange"]
-  issuer              = "https://token.actions.githubusercontent.com"
-  subject             = "repo:MichalBoczula/ECommerceStore.LiveDocs:environment:${each.value}"
+  for_each                  = toset(["livedocs-archive-build", "livedocs-archive-pr"])
+  name                      = "github-${each.value}"
+  user_assigned_identity_id = azurerm_user_assigned_identity.livedocs_archive_reader.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = "https://token.actions.githubusercontent.com"
+  subject                   = "repo:MichalBoczula/ECommerceStore.LiveDocs:environment:${each.value}"
   lifecycle { prevent_destroy = true }
 }
 
