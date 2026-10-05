@@ -10,6 +10,11 @@ mock_provider "azurerm" {
       id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-ecommerce-livedocs-archive"
     }
   }
+  mock_resource "azurerm_storage_container" {
+    defaults = {
+      id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-ecommerce-livedocs-archive/providers/Microsoft.Storage/storageAccounts/stecomldtest/blobServices/default/containers/livedocs"
+    }
+  }
   mock_resource "azurerm_storage_account" {
     defaults = {
       id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-ecommerce-livedocs-archive/providers/Microsoft.Storage/storageAccounts/stecomldtest"
