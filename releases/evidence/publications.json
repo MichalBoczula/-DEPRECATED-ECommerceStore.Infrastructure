@@ -1,0 +1,58 @@
+{
+  "products": {
+    "repository": "MichalBoczula/ProductsCatalog",
+    "commitSha": "cd9d04ae2a82d550b3739492b2a9a3229102e9e1",
+    "image": "mb0101/product-catalog-api@sha256:1814ef51bb86a2e34a4eff198c6fc1be31c9921b55fb4f5be12a02277b5e374d",
+    "publicationRun": 36278532100,
+    "publicationJob": 108506745783,
+    "pushLogLine": "2026-09-26T23:16:41.4149117Z cd9d04ae2a82d550b3739492b2a9a3229102e9e1: digest: sha256:1814ef51bb86a2e34a4eff198c6fc1be31c9921b55fb4f5be12a02277b5e374d size: 2204"
+  },
+  "users": {
+    "repository": "MichalBoczula/ECommerceStoreUsers",
+    "commitSha": "16c1b364df69f1db8b9addb78ff224908a63593c",
+    "image": "mb0101/ecommerce-store-users-api@sha256:2242777af2ada38dc9f98ef593f3a0670f04a400027d76e999660f92ce64300e",
+    "publicationRun": 36439106910,
+    "publicationJob": 108985935355,
+    "pushLogLine": "2026-09-28T14:55:36.6509433Z 16c1b364df69f1db8b9addb78ff224908a63593c: digest: sha256:2242777af2ada38dc9f98ef593f3a0670f04a400027d76e999660f92ce64300e size: 2203"
+  },
+  "invoice": {
+    "repository": "MichalBoczula/ECommerceStoreInvoice",
+    "commitSha": "76512ccf8c521cf3151830312acc5b82d2e31792",
+    "image": "mb0101/ecommerce-store-invoice-api@sha256:09b24ae59f362ca73f6f7e0369a0e0b0814d78b17b7d86403c5b4a24612e4df4",
+    "publicationRun": 36797439907,
+    "publicationJob": 110165039786,
+    "pushLogLine": "2026-10-01T00:49:44.9146238Z 76512ccf8c521cf3151830312acc5b82d2e31792: digest: sha256:09b24ae59f362ca73f6f7e0369a0e0b0814d78b17b7d86403c5b4a24612e4df4 size: 2417"
+  },
+  "payments": {
+    "repository": "MichalBoczula/ECommerceStorePayments",
+    "commitSha": "9663df14cb10886a32fa7850d1ca51537a3da009",
+    "image": "mb0101/ecommerce-store-payments-api@sha256:154d9900a42689ad84758f87b7f481257a4829835c51ebdcf48f34950f1a2c6b",
+    "publicationRun": 36810479764,
+    "publicationJob": 110204809106,
+    "pushLogLine": "2026-10-01T03:29:30.3000680Z 9663df14cb10886a32fa7850d1ca51537a3da009: digest: sha256:154d9900a42689ad84758f87b7f481257a4829835c51ebdcf48f34950f1a2c6b size: 1784"
+  },
+  "bff": {
+    "repository": "MichalBoczula/ECommerceStoreBFF",
+    "commitSha": "369a93914dd3052ba5ae5a85b008c18536076fdf",
+    "image": "mb0101/ecommerce-store-bff-api@sha256:3ac990abd5926390f2267b74394f05106aa776756f73aadbe36d8fe30a9ed59d",
+    "publicationRun": 36816259182,
+    "publicationJob": 110222528760,
+    "pushLogLine": "2026-10-01T04:45:09.4447428Z 369a93914dd3052ba5ae5a85b008c18536076fdf: digest: sha256:3ac990abd5926390f2267b74394f05106aa776756f73aadbe36d8fe30a9ed59d size: 2208"
+  },
+  "frontend": {
+    "repository": "MichalBoczula/ecommerce-store-web",
+    "commitSha": "b474a4b9cf827e2d833dd072db726c8ed1bef5b9",
+    "image": "mb0101/ecommerce-store-web@sha256:ae2f925aaaa9b20a16fd7b8a8f2f2224dd698e5474df05358f645df176f14a33",
+    "publicationRun": 36820545193,
+    "publicationJob": 110235832547,
+    "pushLogLine": "2026-10-01T05:40:35.1415825Z b474a4b9cf827e2d833dd072db726c8ed1bef5b9: digest: sha256:ae2f925aaaa9b20a16fd7b8a8f2f2224dd698e5474df05358f645df176f14a33 size: 2616"
+  },
+  "livedocs": {
+    "repository": "MichalBoczula/ECommerceStore.LiveDocs",
+    "commitSha": "a11d396ad01f1324569c69483e870fa8b9c23cf7",
+    "image": "mb0101/ecommerce-store-livedocs@sha256:cd8c941144d2bf0efd3ab78508a9f217221bb65fea5d10c0c775138561a87d76",
+    "publicationRun": 37064030047,
+    "publicationJob": 111027523510,
+    "pushLogLine": "2026-10-02T21:00:37.3127193Z a11d396ad01f1324569c69483e870fa8b9c23cf7: digest: sha256:cd8c941144d2bf0efd3ab78508a9f217221bb65fea5d10c0c775138561a87d76 size: 3030"
+  }
+}

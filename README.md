@@ -18,6 +18,11 @@ e-commerce store. The separate portfolio deployment belongs to
   Live Azure apply/destroy/reapply evidence is still pending; follow the
   [LiveDocs setup runbook](docs/livedocs-deployment.md).
 
+- **D/5:** reviewed immutable business image set, consumer contract evidence,
+  separate Angular artifact checksum/extractor and cloud configuration inventory.
+  See the [release inventory](docs/development-release.md). This does not deploy
+  the business applications or complete Azure acceptance.
+
 Full application
 apply/destroy/reapply and residual-cost verification belong to D/19. The
 persistent foundation lives in
@@ -49,8 +54,7 @@ OIDC permission or backend access.
 
 After a merge, successful `Terraform CI` on `main` triggers **Publish module
 version**, which creates `modules-v<modules/VERSION>` at the tested commit.
-`modules-v0.1.0` is published. D/4 proposes `0.2.0`; that tag publishes only
-after merge and successful main CI. Existing tags are never moved. Module changes
+`modules-v0.1.0` and `modules-v0.2.0` are published after successful main CI. Existing tags are never moved. Module changes
 require a version bump. Portfolio roots will consume a published tag rather
 than `main`.
 
@@ -211,8 +215,9 @@ terraform -chdir=environments/development init -backend=false -input=false -upgr
 terraform -chdir=environments/development providers lock -platform=linux_amd64 -platform=windows_amd64
 ```
 
-Next: D/5 inventories application images, ports, configuration and dependencies;
-D/6 checks database choices against actual application behavior. D/9 adds the
+D/5 records application images, ports, configuration and dependencies in
+`releases/development.json`. Next: D/6 checks database choices against actual
+application behavior. D/9 adds the
 five business apps to this shared environment. LiveDocs publishes an image
 only; Infrastructure owns its Azure deployment and image updates.
 

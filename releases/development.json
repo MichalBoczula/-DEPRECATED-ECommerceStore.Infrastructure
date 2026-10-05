@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "releaseId": "development-2026-10-05",
+  "status": "inventory",
+  "cloudValidated": false,
+  "infrastructure": {
+    "repository": "MichalBoczula/ECommerceStore.Infrastructure",
+    "moduleVersion": "0.2.0",
+    "moduleTag": "modules-v0.2.0",
+    "commitSha": "c50c68e37df85d4728f84989a785f1df79c26b58",
+    "publicationRun": 37349898852
+  },
+  "applications": {
+    "products": {
+      "repository": "MichalBoczula/ProductsCatalog",
+      "defaultBranch": "master",
+      "commitSha": "cd9d04ae2a82d550b3739492b2a9a3229102e9e1",
+      "image": "mb0101/product-catalog-api@sha256:1814ef51bb86a2e34a4eff198c6fc1be31c9921b55fb4f5be12a02277b5e374d",
+      "publicationRun": 36278532100,
+      "platform": "linux/amd64",
+      "publicationJob": 108506745783,
+      "runtime": {
+        "targetPort": 8080,
+        "ingress": "internal",
+        "startup": "/health/live",
+        "liveness": "/health/live",
+        "readiness": "/health/ready",
+        "readinessScope": "SQL"
+      }
+    },
+    "users": {
+      "repository": "MichalBoczula/ECommerceStoreUsers",
+      "defaultBranch": "master",
+      "commitSha": "16c1b364df69f1db8b9addb78ff224908a63593c",
+      "image": "mb0101/ecommerce-store-users-api@sha256:2242777af2ada38dc9f98ef593f3a0670f04a400027d76e999660f92ce64300e",
+      "publicationRun": 36439106910,
+      "platform": "linux/amd64",
+      "publicationJob": 108985935355,
+      "runtime": {
+        "targetPort": 8080,
+        "ingress": "internal",
+        "startup": "/health/live",
+        "liveness": "/health/live",
+        "readiness": "/health/ready",
+        "readinessScope": "Mongo"
+      }
+    },
+    "invoice": {
+      "repository": "MichalBoczula/ECommerceStoreInvoice",
+      "defaultBranch": "master",
+      "commitSha": "76512ccf8c521cf3151830312acc5b82d2e31792",
+      "image": "mb0101/ecommerce-store-invoice-api@sha256:09b24ae59f362ca73f6f7e0369a0e0b0814d78b17b7d86403c5b4a24612e4df4",
+      "publicationRun": 36797439907,
+      "platform": "linux/amd64",
+      "publicationJob": 110165039786,
+      "runtime": {
+        "targetPort": 8080,
+        "ingress": "internal",
+        "startup": "/health/live",
+        "liveness": "/health/live",
+        "readiness": "/health/ready",
+        "readinessScope": "Mongo; excludes Products and PDF storage"
+      }
+    },
+    "payments": {
+      "repository": "MichalBoczula/ECommerceStorePayments",
+      "defaultBranch": "main",
+      "commitSha": "9663df14cb10886a32fa7850d1ca51537a3da009",
+      "image": "mb0101/ecommerce-store-payments-api@sha256:154d9900a42689ad84758f87b7f481257a4829835c51ebdcf48f34950f1a2c6b",
+      "publicationRun": 36810479764,
+      "platform": "linux/amd64",
+      "publicationJob": 110204809106,
+      "runtime": {
+        "targetPort": 8080,
+        "ingress": "internal",
+        "startup": "/health/live",
+        "liveness": "/health/live",
+        "readiness": "/health/ready",
+        "readinessScope": "Mongo; excludes Invoice and Stripe"
+      }
+    },
+    "bff": {
+      "repository": "MichalBoczula/ECommerceStoreBFF",
+      "defaultBranch": "master",
+      "commitSha": "369a93914dd3052ba5ae5a85b008c18536076fdf",
+      "image": "mb0101/ecommerce-store-bff-api@sha256:3ac990abd5926390f2267b74394f05106aa776756f73aadbe36d8fe30a9ed59d",
+      "publicationRun": 36816259182,
+      "platform": "linux/amd64",
+      "publicationJob": 110222528760,
+      "runtime": {
+        "targetPort": 8080,
+        "ingress": "external",
+        "startup": "/health",
+        "liveness": "/health",
+        "readiness": "/health",
+        "readinessScope": "process only; upstream readiness not implemented"
+      }
+    },
+    "frontend": {
+      "repository": "MichalBoczula/ecommerce-store-web",
+      "defaultBranch": "master",
+      "commitSha": "b474a4b9cf827e2d833dd072db726c8ed1bef5b9",
+      "image": "mb0101/ecommerce-store-web@sha256:ae2f925aaaa9b20a16fd7b8a8f2f2224dd698e5474df05358f645df176f14a33",
+      "publicationRun": 36820545193,
+      "platform": "linux/amd64",
+      "publicationJob": 110235832547,
+      "staticArtifact": {
+        "kind": "oci-static-layer",
+        "digest": "sha256:1dfcccae61a78bd2233898ae0caea823ed6ac91a1a131a717824f99910f8e399",
+        "size": 352003,
+        "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+        "root": "usr/share/nginx/html",
+        "filesManifest": "evidence/frontend-files.json",
+        "filesManifestSha256": "4f5c02edbf60f80399b83ca57aa374cc7c92562dd65be7a01b35494276ff84ca",
+        "swaReady": false
+      }
+    },
+    "livedocs": {
+      "repository": "MichalBoczula/ECommerceStore.LiveDocs",
+      "defaultBranch": "main",
+      "commitSha": "a11d396ad01f1324569c69483e870fa8b9c23cf7",
+      "image": "mb0101/ecommerce-store-livedocs@sha256:cd8c941144d2bf0efd3ab78508a9f217221bb65fea5d10c0c775138561a87d76",
+      "publicationRun": 37064030047,
+      "platform": "linux/amd64",
+      "runtime": {
+        "targetPort": 8080,
+        "ingress": "external",
+        "startup": "/health/live",
+        "liveness": "/health/live",
+        "readiness": "/health/ready",
+        "readinessScope": "static portal"
+      },
+      "publicationJob": 111027523510
+    }
+  },
+  "contracts": {
+    "products": "fa0c8a3db1ab9faeee8995d7a0cacd67f120b0e4c9679aa46bf58b19aa0a5302",
+    "users": "fce16260f0801d35696ffa4a3ee2663bc3b34d1deba200990240e9256f541ea8",
+    "invoice": "bd405d523d5a4d4ef9145e41a670fe880885fef1a72b64198501f838660b028a",
+    "payments": "789befa947a6a3be168dd88d59df78e3eabe0de43ca0f35b1587573d6ffde066"
+  },
+  "compatibility": {
+    "evidence": [
+      "evidence/bff.contracts.json",
+      "evidence/frontend.contracts.json",
+      "evidence/payments.invoice.json"
+    ],
+    "fullStackRun": 36820545193,
+    "fullStackJob": 110235110958,
+    "scope": "Successful local-container browser acceptance with pinned business images; test-only Stripe fixtures. Not Azure acceptance.",
+    "invoiceProductsClient": "Kiota lock records localhost export, not an immutable Products source. Full-stack acceptance covers the selected pair; freeze explicit producer provenance in a future Invoice contract refresh."
+  },
+  "reportBundles": [],
+  "pendingGates": [
+    "D/4 live apply/destroy/reapply",
+    "D/6 SQL eligibility and native Mongo semantics",
+    "D/9 application resources, HTTPS forwarding and Chromium capacity",
+    "D/10 migrations and deterministic seed",
+    "D/11 SWA artifact, BFF origin configuration and SPA routing",
+    "D/12 persistent invoice PDFs and product photos",
+    "D/13 real Stripe test-mode webhook flow",
+    "D/17 Azure end-to-end smoke",
+    "D/19 complete environment lifecycle and residual-cost audit"
+  ]
+}

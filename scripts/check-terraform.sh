@@ -32,6 +32,7 @@ for root in modules/deployment-context modules/consumption-environment modules/l
 done
 
 python3 scripts/check-livedocs-release.py releases/livedocs.json
+python3 scripts/check-development-release.py
 
 # `providers schema` requires backend initialization even after init -backend=false.
 # Audit the same locked packages in a private root with no backend or resources.
