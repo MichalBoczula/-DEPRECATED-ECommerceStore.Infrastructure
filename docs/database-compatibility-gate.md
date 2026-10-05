@@ -29,6 +29,8 @@ The Python runner checks out Payments commit `9663df14cb10886a32fa7850d1ca51537a
 
 PR CI runs a native MongoDB 8 replica set and SQL Server 2022 Developer positive control using recorded Linux/amd64 image digests. CI is credential-free. **A passing native baseline proves the harness runs, not that DocumentDB is compatible.** Redacted reports contain check names and booleans, no connection strings/passwords/subscription IDs. Both suites use `azure-candidate` explicitly for Azure; native results cannot be relabelled as cloud acceptance.
 
+The report checker requires all 16 .NET checks and all 15 Payments cases plus their cleanup and source/endpoint check (31 Payments results). It verifies the pinned driver versions and Payments source commit. Missing checks, a wrong source/driver, or a success flag paired with a failed check cannot produce a passing summary. Failed suites show every omitted check as `FAIL`; arbitrary check labels are rejected before publication.
+
 ## Operator setup after merging this PR
 
 1. In your authenticated PowerShell terminal, select the existing development subscription. Register `Microsoft.Sql` and `Microsoft.DocumentDB` if needed (foundation/operator responsibility; the application provider deliberately does not auto-register):
