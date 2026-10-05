@@ -75,10 +75,10 @@ Terraform creates `rg-ecommerce-livedocs-archive`, a Standard LRS account,
 private `livedocs` container, Entra-based storage, retained versions, 30-day
 blob/container deletion retention and a CanNotDelete lock. The application
 identity gets **Reader on that account only** for retention verification. The
-operator gets archive Blob Data Contributor; future report publisher/read
-identities and scoped data roles belong to LiveDocs LD/4. The public host has
+operator gets archive Blob Data Contributor; LD/5 adds separate Products writer and LiveDocs reader identities scoped to the
+private `livedocs` container. See the [integration setup](https://github.com/MichalBoczula/ECommerceStore.LiveDocs/blob/main/docs/producer-integration.md). The public host has
 no archive identity or runtime blob mount. Archive data is pre-baked into images
-by future publication integration.
+by CI archive integration.
 
 If Azure reports a new role is not yet effective, allow propagation then create
 and review a fresh plan; do not reuse a stale saved plan or enable account keys.
@@ -116,7 +116,7 @@ plan; use the explicit deploy workflow to re-create the host.
    `/livedoc/`, CSS and `/build-info.json` matching the release's source SHA.
    The summary contains the public portal URL.
 3. Open the URL and verify expected empty/available documentation content.
-   Actual Products report integration belongs to LiveDocs LD/4; unavailable
+   Actual Products report integration belongs to LiveDocs LD/5; unavailable
    production inputs must not be silently replaced with fixtures.
 4. Actions → **Destroy development environment** → main. It destroys the entire
    application state, checks empty state, an empty retained `rg-ecommerce-dev`,

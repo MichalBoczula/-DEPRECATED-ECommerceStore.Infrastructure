@@ -10,3 +10,4 @@ belong to their iterations. The development MVP currently prioritizes minimal
 cost, with no paid gateway or private endpoints.
 
 - [0003: Application-owned LiveDocs deployment](0003-livedocs-application-owned-deployment.md)
+- [0004: LiveDocs archive CI identities](0004-livedocs-archive-ci-identities.md)

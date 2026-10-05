@@ -35,3 +35,15 @@ run "persistent_private_archive" {
     error_message = "Application CI may only verify archive management metadata."
   }
 }
+
+run "ci_archive_boundaries" {
+  command = plan
+  assert {
+    condition     = azurerm_role_assignment.products_archive_writer.scope == azurerm_storage_container.reports.id && azurerm_role_assignment.products_archive_writer.role_definition_name == "Storage Blob Data Contributor" && azurerm_role_assignment.livedocs_archive_reader.scope == azurerm_storage_container.reports.id && azurerm_role_assignment.livedocs_archive_reader.role_definition_name == "Storage Blob Data Reader"
+    error_message = "Producer and builder roles must be confined to the private livedocs container."
+  }
+  assert {
+    condition     = azurerm_federated_identity_credential.products_archive_writer.subject == "repo:MichalBoczula/ProductsCatalog:ref:refs/heads/master" && azurerm_federated_identity_credential.livedocs_archive_reader["livedocs-archive-build"].subject == "repo:MichalBoczula/ECommerceStore.LiveDocs:environment:livedocs-archive-build" && azurerm_federated_identity_credential.livedocs_archive_reader["livedocs-archive-pr"].subject == "repo:MichalBoczula/ECommerceStore.LiveDocs:environment:livedocs-archive-pr"
+    error_message = "Trust only producer master and protected LiveDocs environment subjects."
+  }
+}
