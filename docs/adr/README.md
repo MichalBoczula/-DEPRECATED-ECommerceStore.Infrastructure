@@ -10,3 +10,5 @@ belong to their iterations. The development MVP currently prioritizes minimal
 cost, with no paid gateway or private endpoints.
 
 - [0003: Application-owned LiveDocs deployment](0003-livedocs-application-owned-deployment.md)
+
+- [ADR 0004: reviewed release set and Angular artifact](0004-reviewed-release-set-and-angular-artifact.md)

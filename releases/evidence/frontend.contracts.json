@@ -1,0 +1,30 @@
+{
+  "products": {
+    "image": "mb0101/product-catalog-api@sha256:1814ef51bb86a2e34a4eff198c6fc1be31c9921b55fb4f5be12a02277b5e374d",
+    "sourceCommit": null,
+    "exportMethod": "published application layer",
+    "specSha256": "fa0c8a3db1ab9faeee8995d7a0cacd67f120b0e4c9679aa46bf58b19aa0a5302",
+    "paths": 8
+  },
+  "users": {
+    "image": "mb0101/ecommerce-store-users-api@sha256:2242777af2ada38dc9f98ef593f3a0670f04a400027d76e999660f92ce64300e",
+    "sourceCommit": "16c1b364df69f1db8b9addb78ff224908a63593c",
+    "exportMethod": "matching source commit; isolated WebApplicationFactory export",
+    "specSha256": "fce16260f0801d35696ffa4a3ee2663bc3b34d1deba200990240e9256f541ea8",
+    "paths": 12
+  },
+  "invoice": {
+    "image": "mb0101/ecommerce-store-invoice-api@sha256:09b24ae59f362ca73f6f7e0369a0e0b0814d78b17b7d86403c5b4a24612e4df4",
+    "sourceCommit": "76512ccf8c521cf3151830312acc5b82d2e31792",
+    "exportMethod": "OpenApiExportTests; STRIPE/3 published source",
+    "specSha256": "bd405d523d5a4d4ef9145e41a670fe880885fef1a72b64198501f838660b028a",
+    "paths": 12
+  },
+  "payments": {
+    "image": "mb0101/ecommerce-store-payments-api@sha256:154d9900a42689ad84758f87b7f481257a4829835c51ebdcf48f34950f1a2c6b",
+    "sourceCommit": "9663df14cb10886a32fa7850d1ca51537a3da009",
+    "exportMethod": "successful main CI payments-openapi artifact (36810479764)",
+    "specSha256": "789befa947a6a3be168dd88d59df78e3eabe0de43ca0f35b1587573d6ffde066",
+    "paths": 7
+  }
+}

@@ -17,10 +17,11 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
-      - name: Check shell syntax and teardown behavior without Azure
+      - name: Check release inventory, shell syntax and teardown without Azure
         shell: bash
         run: |
           for script in scripts/*.sh; do bash -n "$script"; done
+          python3 scripts/check-development-release.py
           python3 -m unittest discover -s tests -v
       - name: Set up pinned Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
