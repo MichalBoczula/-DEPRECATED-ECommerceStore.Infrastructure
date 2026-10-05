@@ -235,3 +235,10 @@ manual lifecycle and residual-resource audit.
 - [Terraform Azure backend and OIDC](https://developer.hashicorp.com/terraform/language/backend/azurerm)
 - [Terraform destroy plans](https://developer.hashicorp.com/terraform/cli/commands/destroy)
 - [GitHub manual workflow button](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)
+
+LD/5 adds container-scoped CI archive identities in `foundations/livedocs`; see
+[ADR-0005](docs/adr/0005-livedocs-archive-ci-identities.md). Apply a fresh foundation
+plan to create them and read `products_livedocs_client_id`, `livedocs_reader_client_id`,
+`livedocs_tenant_id` and `livedocs_subscription_id`. This does not deploy ACA or
+change application state. The `livedocs` container and its access roles remain separate from photos;
+a photos container can coexist in the same persistent account.
