@@ -15,7 +15,7 @@ variables {
 run "shared_consumption_environment" {
   command = plan
   assert {
-    condition     = toset(azurerm_subnet.host.service_endpoints) == toset(["Microsoft.Storage", "Microsoft.KeyVault"])
+    condition     = toset([for endpoint in azurerm_subnet.host.service_endpoint : endpoint.service]) == toset(["Microsoft.Storage", "Microsoft.KeyVault"])
     error_message = "Prepare supported Storage/Key Vault endpoints; cross-region SQL uses IP ACLs."
   }
   assert {

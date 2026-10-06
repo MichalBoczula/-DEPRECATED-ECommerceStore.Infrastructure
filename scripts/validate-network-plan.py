@@ -98,7 +98,9 @@ def validate(plan):
                 require(after['address_space'] == ['10.42.0.0/16'])
             elif kind == 'azurerm_subnet':
                 require(after['name'] == 'aca' and after['virtual_network_name'] == 'vnet-' + prefix)
-                require(after['address_prefixes'] == ['10.42.0.0/23'] and set(after['service_endpoints']) == ENDPOINTS)
+                endpoints = after['service_endpoint']
+                require(after['address_prefixes'] == ['10.42.0.0/23'] and len(endpoints) == 2)
+                require({item['service'] for item in endpoints} == ENDPOINTS and all(item.get('network_identifier') in (None, '') for item in endpoints))
                 delegation = after['delegation']
                 require(len(delegation) == 1 and delegation[0]['service_delegation'][0]['name'] == 'Microsoft.App/environments')
             else:

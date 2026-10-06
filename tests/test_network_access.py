@@ -31,7 +31,7 @@ def plan(access=True, databases=True, docs=True):
         changes[2]['change']['after']['body']['properties']['publicNetworkAccess'] = 'Enabled' if access else 'Disabled'
     values = [dict(name='vnet-ecommerce-dev', location='northeurope', address_space=['10.42.0.0/16']),
         dict(name='aca', virtual_network_name='vnet-ecommerce-dev', address_prefixes=['10.42.0.0/23'],
-             service_endpoints=['Microsoft.Storage','Microsoft.KeyVault'], delegation=[{'service_delegation':[{'name':'Microsoft.App/environments'}]}]),
+             service_endpoint=[{'service':'Microsoft.Storage'},{'service':'Microsoft.KeyVault'}], delegation=[{'service_delegation':[{'name':'Microsoft.App/environments'}]}]),
         dict(name='cae-ecommerce-dev', location='northeurope', infrastructure_resource_group_name='rg-ecommerce-dev-aca-managed',
              workload_profile=[dict(name='Consumption',workload_profile_type='Consumption')], logs_destination=None,
              internal_load_balancer_enabled=False,public_network_access='Enabled',zone_redundancy_enabled=False)]
@@ -81,7 +81,7 @@ class NetworkPolicyTests(unittest.TestCase):
             if mutation=='replace': p['resource_changes'][0]['change']['actions']=['delete','create']
             if mutation=='extra': p['resource_changes'].append(dict(address='azurerm_nat_gateway.extra',type='azurerm_nat_gateway',mode='managed',change=dict(actions=['create'],after={})))
             if mutation=='parent': p['configuration']['root_module']['resources'][-1]['expressions']['parent_id']['references']=['azapi_resource.other']
-            if mutation=='endpoint': resources['module.consumption[0].azurerm_subnet.host']['change']['after']['service_endpoints'].append('Microsoft.Sql')
+            if mutation=='endpoint': resources['module.consumption[0].azurerm_subnet.host']['change']['after']['service_endpoint'].append({'service':'Microsoft.Sql'})
             if mutation=='replicas': resources[policy.LIVE]['change']['after']['template'][0]['min_replicas']=1
             if mutation=='image': resources[policy.LIVE]['change']['after']['template'][0]['container'][0]['image']='example:latest'
             if mutation=='wrongenvironment': resources[policy.LIVE]['change']['after']['container_app_environment_id']=ENVIRONMENT.replace('rg-ecommerce-dev','rg-other')
