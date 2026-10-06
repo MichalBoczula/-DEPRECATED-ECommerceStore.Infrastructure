@@ -57,6 +57,8 @@ The report checker requires all 16 .NET checks and all 15 Payments cases plus th
 
 4. After apply, the workflow reads the three resources through Azure's management API and verifies SQL Free/AutoPause, DocumentDB Free, region and disabled public access. This uses the existing GitHub OIDC login. No workstation IP, local SDK, connection string or driver probe is required. Record the successful plan/apply workflow URLs, then continue with D/7.
 
+   Planning failures report Terraform's source location and an allowlisted category, candidate input/resource name or known Azure error code. Passwords, diagnostic detail, snippets and raw plans are never printed. A failed plan does not run apply; use its safe diagnostic to investigate before retrying. Destroy is for resources already recorded by a prior apply.
+
    If you previously applied the older operator-IP version, the new plan will reject removal of its firewall resources under the existing no-delete policy. Use **Destroy development** first and then apply the simplified version. Destroy also removes LiveDocs; the retained state foundation and independent archive survive. Keep the candidate flag and passwords configured while the candidate exists, including for teardown. An apply or readback failure leaves D/6 pending; inspect privately or use destroy for recorded partial resources.
 
 ## Acceptance and remaining work

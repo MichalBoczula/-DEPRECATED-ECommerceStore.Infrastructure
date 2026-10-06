@@ -129,6 +129,24 @@ class CandidateWorkflowTests(unittest.TestCase):
         self.assertNotEqual(self.run_candidate().returncode,0)
         self.assertEqual(self.fixture.calls(),[])
 
+    def test_failed_plan_reports_safe_diagnostic_and_never_applies(self):
+        self.env['DEPLOY_ACTION']='apply'
+        fake=(self.fixture.directory/'terraform').read_text()
+        diagnostic=dict(type='diagnostic',diagnostic=dict(severity='error',summary='Invalid body',
+            detail='SENSITIVE-RAW-DIAGNOSTIC',range=dict(filename='database-candidate.tf',start=dict(line=40))))
+        fake=fake.replace('    if operation == "plan":',
+            '    if operation == "plan":\n        print('+repr(json.dumps(diagnostic))+')\n        sys.exit(1)')
+        (self.fixture.directory/'terraform').write_text(fake)
+        result=self.run_candidate()
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('database-candidate.tf:40: Invalid body',result.stderr)
+        self.assertIn('no apply was attempted',result.stderr)
+        self.assertNotIn('SENSITIVE-RAW-DIAGNOSTIC',result.stdout+result.stderr)
+        self.assertFalse(any(c[:2]==['terraform','apply'] for c in self.fixture.calls()))
+        saved=next(c for c in self.fixture.calls() if c[:2]==['terraform','plan'])
+        self.assertIn('-json',saved)
+        self.assertFalse(Path(next(v[5:] for v in saved if v.startswith('-out='))).parent.exists())
+
     def test_failed_or_paid_readback_fails_without_raw_output(self):
         self.env['DEPLOY_ACTION']='apply'
         self.env['FAIL_OPERATION']='az:rest'

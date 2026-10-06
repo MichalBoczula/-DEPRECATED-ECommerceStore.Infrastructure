@@ -13,10 +13,15 @@ work_dir=$(mktemp -d)
 phase=initialization
 cleanup() {
   code=$?
-  rm -rf -- "$work_dir"
   if (( code != 0 )); then
-    printf '::error::D/6 candidate failed during %s; private Terraform details withheld. Use Destroy development for recorded partial resources.\n' "$phase" >&2
+    if [[ $phase == planning ]]; then
+      python3 "$repo_root/scripts/report-test-failure.py" "$work_dir/plan.log" --deployment || true
+      echo '::error::D/6 plan failed; no apply was attempted by this run. Raw diagnostics remain private.' >&2
+    else
+      printf '::error::D/6 candidate failed during %s; private Terraform details withheld.\n' "$phase" >&2
+    fi
   fi
+  rm -rf -- "$work_dir"
 }
 trap cleanup EXIT
 terraform init -input=false -reconfigure -lockfile=readonly \
@@ -27,7 +32,7 @@ terraform init -input=false -reconfigure -lockfile=readonly \
 phase=validation
 terraform validate -no-color >"$work_dir/validate.log" 2>&1
 phase=planning
-terraform plan -input=false -lock=true -lock-timeout=5m -out="$work_dir/candidate.tfplan" >"$work_dir/plan.log" 2>&1
+terraform plan -json -input=false -lock=true -lock-timeout=5m -out="$work_dir/candidate.tfplan" >"$work_dir/plan.log" 2>"$work_dir/plan-stderr.log"
 terraform show -json "$work_dir/candidate.tfplan" >"$work_dir/plan.json" 2>"$work_dir/show.log"
 phase=policy
 python3 "$repo_root/scripts/validate-database-candidate.py" "$work_dir/plan.json"

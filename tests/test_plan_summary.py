@@ -12,6 +12,28 @@ spec.loader.exec_module(renderer)
 
 
 class PlanSummaryTests(unittest.TestCase):
+    def test_deployment_errors_preserve_categories_and_never_detail(self):
+        secret = 'SENSITIVE-RAW-DIAGNOSTIC'
+        messages = [
+            dict(type='diagnostic', diagnostic=dict(severity='error',summary='Invalid value for variable',
+                detail=secret,range=dict(filename='variables.tf',start=dict(line=60)),
+                snippet=dict(context='variable "candidate_sql_password"',values=[secret]))),
+            dict(type='diagnostic',diagnostic=dict(severity='error',summary=secret,
+                address='azapi_resource.mongo_candidate[0]',detail='AuthorizationFailed '+secret)),
+            dict(type='diagnostic',diagnostic=dict(severity='warning',summary='Invalid body',detail=secret)),
+            dict(type='planned_change',change=dict(after=secret)),
+        ]
+        with tempfile.NamedTemporaryFile(mode='w') as target:
+            target.write('\n'.join(json.dumps(m) for m in messages));target.flush()
+            result=subprocess.run(['python3',str(ROOT/'scripts/report-test-failure.py'),target.name,'--deployment'],capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertNotIn(secret,result.stdout+result.stderr)
+        self.assertIn('variables.tf:60: Invalid value for variable',result.stderr)
+        self.assertIn('Check environment input: candidate_sql_password',result.stderr)
+        self.assertIn('Resource: azapi_resource.mongo_candidate[0]',result.stderr)
+        self.assertIn('Azure error category: AuthorizationFailed',result.stderr)
+        self.assertNotIn('Invalid body',result.stderr)
+
     def test_failure_report_prints_only_location_and_allowlisted_category(self):
         secret = "SENSITIVE-RAW-DIAGNOSTIC"
         with tempfile.NamedTemporaryFile(mode="w") as target:
