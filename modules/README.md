@@ -9,9 +9,9 @@ module in application state.
 
 ## Version contract
 
-`modules/VERSION` versions all modules together. D/4 proposes version `0.2.0`.
+`modules/VERSION` versions all modules together. D/7 proposes version `0.3.0` for the subnet endpoint change.
 Successful main-branch Terraform CI triggers tag publication at that exact tested
-commit. `modules-v0.1.0` is published. The new tag becomes available after D/4 is
+commit. `modules-v0.1.0` and `modules-v0.2.0` are published. The new tag becomes available after D/7 is
 merged and its main CI and publication succeed. The publisher has repository contents write
 permission and no Azure access. It never overwrites a tag.
 
@@ -40,3 +40,7 @@ Do not reference `main` from portfolio. A module upgrade is an explicit change
 to its `ref`, followed by a reviewed plan. Keep the previous configuration and
 state until teardown or upgrade succeeds; a Git rollback alone does not undo
 Azure changes.
+
+D/5's release manifest retains its verified `modules-v0.2.0` publication
+provenance. Development tests D/7 against local 0.3.0 modules. Update consumer
+release provenance only after the new immutable tag has actually been published.

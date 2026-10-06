@@ -15,6 +15,10 @@ variables {
 run "shared_consumption_environment" {
   command = plan
   assert {
+    condition     = toset([for endpoint in azurerm_subnet.host.service_endpoint : endpoint.service]) == toset(["Microsoft.Storage", "Microsoft.KeyVault"])
+    error_message = "Prepare supported Storage/Key Vault endpoints; cross-region SQL uses IP ACLs."
+  }
+  assert {
     condition     = length(azurerm_container_app_environment.host.workload_profile) == 1 && one(azurerm_container_app_environment.host.workload_profile).workload_profile_type == "Consumption" && azurerm_container_app_environment.host.logs_destination == null
     error_message = "Use only Consumption and streaming logs; no dedicated profile or analytics workspace."
   }

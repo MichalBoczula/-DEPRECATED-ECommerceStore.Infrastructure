@@ -3,7 +3,8 @@
 Status: the operator reported local creation on 2026-10-06 of SQL server
 `sql-ecommerce-dev-d6-mike2026` and database `products-gate` in France Central,
 and `mongo-ecommerce-dev-d6-mike2026` in North Europe. Post-apply Free/network
-readback has not been supplied; teardown is requested and unverified. D/6
+readback has not been supplied. The operator reported the disposable environment
+cleared before D/7 on 2026-10-06; this is not D/19 residual-cost evidence. D/6
 remains provisional. D/7 configures access from Container Apps; D/9 verifies
 real driver compatibility before accepting the backend for the applications.
 D/17 covers business flows and D/19 covers destroy/recreate proof. The D/5
@@ -12,7 +13,7 @@ application release remains unchanged.
 Use the [local PowerShell runbook](local-development.md) for provisioning,
 Free readback and teardown against the existing remote state. No GitHub
 environment input is required for that route. The workflow instructions below
-remain an optional OIDC execution route. The [D/7 preparation](development-network-access.md)
+remain an optional OIDC execution route. The [D/7 local network access](development-network-access.md)
 accounts for SQL and ACA being in different regions.
 
 ## Candidate and cost boundary
@@ -22,7 +23,7 @@ accounts for SQL and ACA being in different regions.
 | Azure SQL Database | SQL-only `candidate_sql_location` (default North Europe), General Purpose serverless, `useFreeLimit=true`, `freeLimitExhaustionBehavior=AutoPause`, 32 GiB limit, local backup redundancy | The subscription can create the free offer; ARM readback confirms the free settings (D/6); EF Core SQL Server 10.0.1 and Dapper 2.1.66 checks pass from Azure (D/9) |
 | Azure DocumentDB Free | North Europe, `Free`, 32 GiB, one shard, HA disabled, Mongo compatibility 8.0, NativeAuth | Terraform creation and Free readback (D/6); unchanged readiness and driver checks from Azure (D/9); recreation proof (D/19) |
 
-Both are **experiments in the existing disposable development state**, container `development-state`, key `ecommerce/development.tfstate`, default workspace. Three managed resources: SQL logical server, SQL database and Mongo cluster. Public data-plane access is disabled on both servers, with no firewall rules. D/7 will configure the affordable ACA access path; the candidate is intentionally unreachable by applications until then. No private endpoints, paid fallback, Cosmos Mongo RU account or additional experimental state. The retained `rg-ecommerce-dev` belongs to the bootstrap foundation. The D/1 **Destroy development** button removes all disposable resources, including existing LiveDocs, while retaining the group, state store and independent archive.
+Both are **experiments in the existing disposable development state**, container `development-state`, key `ecommerce/development.tfstate`, default workspace. Three managed resources: SQL logical server, SQL database and Mongo cluster. The D/6-only configuration disables public data-plane access on both servers, with no firewall rules. D/7 explicitly enables public endpoints with exact ACA IPv4 rules through its wider local plan policy; defaults stay disabled. No private endpoints, paid fallback, Cosmos Mongo RU account or additional experimental state. The retained `rg-ecommerce-dev` belongs to the bootstrap foundation. The D/1 **Destroy development** button removes all disposable resources, including existing LiveDocs, while retaining the group, state store and independent archive.
 
 SQL serverless alone does not activate the free offer. Keep `AutoPause`; never change to `BillOverUsage` to work around an eligibility error. Current free allowance is 100,000 vCore-seconds and 32 GB data/backup per database monthly, subject to subscription eligibility. Service readback and actual creation are required; mock tests do not establish eligibility. A deleted free SQL slot can take up to an hour to become available again.
 
@@ -96,7 +97,7 @@ checker confirms Free settings and disabled public access, whether invoked
 locally or through the optional workflow. Record the safe local summary and
 commit/action counts, or workflow URLs. Provisioning does not prove Mongo
 compatibility and `database_candidate.selected` remains false. Native CI is
-harness evidence only. The operator-requested teardown does not replace D/19's
+harness evidence only. The operator-reported teardown does not replace D/19's
 full lifecycle proof.
 
 - **D/7:** configure SQL/Mongo access from the existing ACA environment, with no private endpoints or paid egress gateway. Changing the disabled public-access setting requires that reviewed network change.

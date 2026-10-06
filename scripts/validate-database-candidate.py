@@ -31,7 +31,7 @@ def sql_free(body):
     require(p['autoPauseDelay'] == 60 and p['minCapacity'] == 0.5 and p['zoneRedundant'] is False)
 
 
-def validate(plan):
+def validate(plan, *, public_access_enabled=False):
     require(not plan.get('errored') and plan.get('complete') is not False)
     sql_location = plan['variables']['candidate_sql_location']['value']
     require(re.fullmatch(r'[a-z][a-z0-9]+', sql_location))
@@ -53,7 +53,7 @@ def validate(plan):
         if kind == 'azurerm_mssql_server':
             require(after['resource_group_name'] == 'rg-ecommerce-dev' and after['location'] == sql_location)
             require(after['minimum_tls_version'] == '1.2' and after['version'] == '12.0')
-            require(after['public_network_access_enabled'] is False)
+            require(after['public_network_access_enabled'] is public_access_enabled)
         if address == 'azapi_resource.sql_candidate[0]':
             require(after['type'] == 'Microsoft.Sql/servers/databases@2023-08-01' and after['name'] == 'products-gate')
             require(after['location'] == sql_location)
@@ -65,7 +65,7 @@ def validate(plan):
             p = after['body']['properties']
             require(p['compute']['tier'] == 'Free' and p['storage'] == {'sizeGb': 32, 'type': 'PremiumSSD'})
             require(p['sharding']['shardCount'] == 1 and p['highAvailability']['targetMode'] == 'Disabled')
-            require(p['serverVersion'] == '8.0' and p['publicNetworkAccess'] == 'Disabled' and p['createMode'] == 'Default')
+            require(p['serverVersion'] == '8.0' and p['publicNetworkAccess'] == ('Enabled' if public_access_enabled else 'Disabled') and p['createMode'] == 'Default')
             require(p['authConfig']['allowedModes'] == ['NativeAuth'] and p['administrator'].get('userName') == 'd6operator')
         if change['actions'] != ['no-op']:
             counts[change['actions'][0]] += 1
@@ -73,9 +73,10 @@ def validate(plan):
     return counts
 
 
-def validate_readback(server, database, mongo, sql_location):
+def validate_readback(server, database, mongo, sql_location, *, public_access_enabled=False):
     """Check service-reported offer and network settings without a data connection."""
-    require(server['properties']['publicNetworkAccess'] == 'Disabled')
+    expected_access = 'Enabled' if public_access_enabled else 'Disabled'
+    require(server['properties']['publicNetworkAccess'] == expected_access)
     sql_free({
         'sku': {key: database['sku'][key] for key in ('name', 'tier', 'family', 'capacity')},
         'properties': database['properties'],
@@ -83,13 +84,13 @@ def validate_readback(server, database, mongo, sql_location):
     p = mongo['properties']
     require(p['compute']['tier'] == 'Free' and p['storage']['sizeGb'] == 32)
     require(p['sharding']['shardCount'] == 1 and p['highAvailability']['targetMode'] == 'Disabled')
-    require(p['publicNetworkAccess'] == 'Disabled')
+    require(p['publicNetworkAccess'] == expected_access)
     require(re.fullmatch(r'[a-z][a-z0-9]+', sql_location))
     require(all(item['location'].replace(' ', '').lower() == sql_location for item in (server, database)))
     require(mongo['location'].replace(' ', '').lower() == 'northeurope')
 
 
-def readback(names, subscription):
+def readback(names, subscription, *, public_access_enabled=False):
     require(re.fullmatch(r'[0-9a-fA-F-]{36}', subscription))
     require(re.fullmatch(r'sql-[a-z0-9-]+', names['sql_server']))
     require(re.fullmatch(r'mongo-[a-z0-9-]+', names['mongo_cluster']))
@@ -105,7 +106,7 @@ def readback(names, subscription):
     responses = [json.loads(subprocess.run(
         [azure_cli, 'rest', '--method', 'get', '--url', url, '--output', 'json'],
         capture_output=True, text=True, check=True, timeout=120).stdout) for url in urls]
-    validate_readback(*responses, names['sql_location'])
+    validate_readback(*responses, names['sql_location'], public_access_enabled=public_access_enabled)
 
 
 if __name__ == '__main__':

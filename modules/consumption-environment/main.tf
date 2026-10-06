@@ -15,6 +15,13 @@ resource "azurerm_subnet" "host" {
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.host.name
   address_prefixes     = ["10.42.0.0/23"]
+  # D/8 supplies matching resource ACLs and identities; endpoints alone grant nothing.
+  service_endpoint {
+    service = "Microsoft.Storage"
+  }
+  service_endpoint {
+    service = "Microsoft.KeyVault"
+  }
   delegation {
     name = "container-apps"
     service_delegation {

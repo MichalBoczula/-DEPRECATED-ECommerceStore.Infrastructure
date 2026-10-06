@@ -4,6 +4,8 @@ Run Azure provisioning and teardown locally with Terraform; GitHub CI continues
 to validate repository changes. Existing manual OIDC workflows are optional.
 Local execution still creates resources in Azure and uses the same remote state.
 It does not require your workstation IP or a local database driver probe.
+For the shared environment and database firewalls, follow the
+[D/7 two-stage runbook](development-network-access.md) and its local lifecycle script.
 
 Use the reviewed checkout and Terraform **1.16.5**, Azure CLI and Python 3 on
 PATH. Run commands from the repository root. Keep current input values until
@@ -61,9 +63,12 @@ scripts from this terminal: they enforce runner/OIDC configuration.
 
 ## Destroy the current disposable environment
 
-Keep the candidate enabled and its passwords available. This complete-state
+Keep the candidate enabled and its passwords available. After D/7, also retain
+the shared-environment/LiveDocs/access flags and ignored egress-IP file until
+teardown completes. Restore the actual deployment inputs instead of copying
+the database-only flags above over an existing D/7 environment. This complete-state
 destroy also removes any state-owned LiveDocs/network resources if present.
-The reported database-only environment should contain these three managed
+Before D/7, the database-only environment contained these three managed
 addresses:
 
 - `azurerm_mssql_server.database_candidate[0]`
@@ -168,8 +173,8 @@ Remove-Item -LiteralPath $localLifecycleDir -Recurse -Force
 
 Record only the safe success summary, commit, resource names/regions and action
 counts. D/6 readback checks configuration; D/9 checks real driver compatibility
-from Azure. D/7 access changes need a wider reviewed plan policy; do not use the
-three-resource D/6 validator to approve the full environment.
+from Azure. D/7 uses `deploy-development-network.ps1` and its wider reviewed plan policy;
+do not use the three-resource D/6 validator to approve the full environment.
 
 References: [Azure Blob backend CLI authentication](https://developer.hashicorp.com/terraform/language/backend/azurerm),
 [saved destroy plans](https://developer.hashicorp.com/terraform/cli/commands/destroy).

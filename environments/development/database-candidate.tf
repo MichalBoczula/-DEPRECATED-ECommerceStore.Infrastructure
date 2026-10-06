@@ -8,7 +8,7 @@ resource "azurerm_mssql_server" "database_candidate" {
   administrator_login           = "d6operator"
   administrator_login_password  = var.candidate_sql_password
   minimum_tls_version           = "1.2"
-  public_network_access_enabled = false
+  public_network_access_enabled = var.enable_database_access
   tags                          = module.context.tags
 }
 # AzureRM 5.8.0 cannot express the Free offer: one owner, explicit AzAPI body.
@@ -51,7 +51,7 @@ resource "azapi_resource" "mongo_candidate" {
       compute             = { tier = "Free" }
       createMode          = "Default"
       highAvailability    = { targetMode = "Disabled" }
-      publicNetworkAccess = "Disabled"
+      publicNetworkAccess = var.enable_database_access ? "Enabled" : "Disabled"
       serverVersion       = "8.0"
       sharding            = { shardCount = 1 }
       storage             = { sizeGb = 32, type = "PremiumSSD" }
