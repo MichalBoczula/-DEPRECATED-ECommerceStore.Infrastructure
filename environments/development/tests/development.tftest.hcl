@@ -34,7 +34,6 @@ run "database_candidate_free_only" {
   variables {
     enable_database_candidate = true
     candidate_suffix          = "reviewd6"
-    candidate_operator_ipv4   = "8.8.4.4"
     candidate_sql_password    = "MockOnly-NotASecret-123!"
     candidate_mongo_password  = "MockOnly-NotASecret-456!"
   }
@@ -47,8 +46,8 @@ run "database_candidate_free_only" {
     error_message = "D/6 must use the SQL free offer and pause at exhaustion."
   }
   assert {
-    condition     = azurerm_mssql_firewall_rule.database_candidate[0].start_ip_address == azurerm_mssql_firewall_rule.database_candidate[0].end_ip_address && azurerm_mongo_cluster_firewall_rule.database_candidate[0].start_ip_address == azurerm_mssql_firewall_rule.database_candidate[0].start_ip_address && !output.database_candidate.selected
-    error_message = "The candidate must allow one operator IP and must not select the application backend."
+    condition     = !azurerm_mssql_server.database_candidate[0].public_network_access_enabled && azapi_resource.mongo_candidate[0].body.properties.publicNetworkAccess == "Disabled" && !output.database_candidate.selected
+    error_message = "D/6 must keep public database access disabled and leave backend acceptance to deployment checks."
   }
 }
 

@@ -35,4 +35,4 @@ module "livedocs" {
   image               = local.livedocs_release.image
   tags                = module.context.tags
 }
-# Five business services join this environment in D/9 after the D/6 DB gate.
+# Five business services join this environment in D/9 with Azure driver compatibility verification.

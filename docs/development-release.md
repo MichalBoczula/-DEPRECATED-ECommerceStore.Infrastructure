@@ -109,7 +109,7 @@ copy localhost URLs or Compose credentials into Azure.
 | --- | --- | --- |
 | Products | `ConnectionStrings__ProductCatalogDb` | SQL connection secret; provisioned SQL database, D/8 |
 | Products | `Database__ApplyMigrations` | `false` on normal replicas; one-shot migration/seed strategy, D/10 |
-| Users | `MongoDbSettings__ConnectionString`, `MongoDbSettings__DatabaseName` | Mongo secret and Users database, D/8; native transaction/session/index semantics must pass D/6 |
+| Users | `MongoDbSettings__ConnectionString`, `MongoDbSettings__DatabaseName` | Mongo secret and Users database, D/8; native transaction/session/index semantics must pass D/9 |
 | Invoice | `MongoDbSettings__ConnectionString`, `MongoDbSettings__DatabaseName` | Mongo secret and Invoice database, D/8 |
 | Invoice | `ExternalServices__ProductCatalog__BaseUrl` | Internal Products ACA service URL, D/9 |
 | BFF | `GatewaySettings__BaseUrl` | BFF's own service base URL; resolve explicitly, D/9 |
@@ -188,4 +188,4 @@ records are reviewable evidence, not a claim of signed supply-chain attestation.
 D/15 must consume this manifest rather than invent a second image map. D/16
 promotes a reviewed compatible set as a whole. D/17 supplies cloud business
 smoke; D/19 supplies full apply/destroy/reapply and residual-cost evidence.
-D/6 is the next database gate. D/4 live acceptance remains separately pending.
+D/6 provisions a provisional Free backend; D/9 verifies cloud driver compatibility before accepting it. D/4 live acceptance remains separately pending.

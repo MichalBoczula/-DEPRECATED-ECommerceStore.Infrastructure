@@ -42,7 +42,7 @@ The committed root lock file includes Windows and Linux checksums. AzureRM
 automatic provider registration is disabled because registration is a foundation
 operator responsibility. AzAPI is reserved for Azure SQL Free properties that
 this AzureRM version does not expose. Database eligibility and application
-compatibility still need D/6 and D/8; see the
+compatibility still need D/6 provisioning and D/9 deployment verification; see the
 [provider capability audit](docs/provider-capabilities.md).
 
 Every PR runs credential-free Terraform validation and mock plan tests on Linux
@@ -216,8 +216,8 @@ terraform -chdir=environments/development providers lock -platform=linux_amd64 -
 ```
 
 D/5 records application images, ports, configuration and dependencies in
-`releases/development.json`. Next: D/6 checks database choices against actual
-application behavior. D/9 adds the
+`releases/development.json`. Next: D/6 provisions the Free database candidate. D/7 configures its access;
+D/9 verifies real driver compatibility and adds the
 five business apps to this shared environment. LiveDocs publishes an image
 only; Infrastructure owns its Azure deployment and image updates.
 
@@ -243,6 +243,6 @@ plan to create them and read `products_livedocs_client_id`, `livedocs_reader_cli
 change application state. The `livedocs` container and its access roles remain separate from photos;
 a photos container can coexist in the same persistent account.
 
-# D/6 database gate
+# D/6 database provisioning
 
-The optional Free SQL/DocumentDB candidate is disabled by default. Provision it through the manual candidate workflow, then run the Windows driver probe and destroy/recreate cycle in the [D/6 runbook](docs/database-compatibility-gate.md). PR CI provides a native positive control; Azure compatibility is pending operator evidence. All candidate resources use the existing disposable development state and destroy button.
+The optional Free SQL/DocumentDB candidate is disabled by default. Provision it through the manual candidate workflow; apply automatically checks Azure Free settings and disabled public access. Follow the [D/6 runbook](docs/database-compatibility-gate.md), then continue with D/7 networking. D/9 verifies driver compatibility from Azure, D/17 checks the business flow, and D/19 proves recreation. PR CI provides a native positive control; cloud compatibility remains pending deployment evidence. All candidate resources use the existing disposable development state and destroy button.

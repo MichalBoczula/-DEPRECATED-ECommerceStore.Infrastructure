@@ -7,13 +7,13 @@ provider schemas, while the links below establish the Azure/API intent.
 | Dependency / resource | Verified capability | Deployment decision |
 | --- | --- | --- |
 | Terraform `1.16.5` | Module tests and mock providers | Same exact version in roots, workflows and `.terraform-version` |
-| AzureRM `5.8.0`: `azurerm_mongo_cluster` | `compute_tier` includes `Free` in provider documentation; attribute exists in schema | Candidate only. Check application Mongo features, offer/region eligibility and current pricing in D/6 |
+| AzureRM `5.8.0`: `azurerm_mongo_cluster` | `compute_tier` includes `Free` in provider documentation; attribute exists in schema | Candidate only. Check offer/region eligibility in D/6; verify application Mongo features in D/9 |
 | AzureRM `5.8.0`: `azurerm_mssql_database` | Schema lacks `use_free_limit` and `free_limit_exhaustion_behavior` | Serverless/autopause alone does not configure the SQL Free offer |
-| AzAPI `2.13.0`: `azapi_resource` | Accepts API resource `type` and `body` | Use Azure SQL API free-limit properties in D/8 after offer validation |
+| AzAPI `2.13.0`: `azapi_resource` | Accepts API resource `type` and `body` | D/6 uses SQL free-limit properties and the DocumentDB Free creation contract |
 | Azure SQL API `2023-08-01` | Database properties include `useFreeLimit` and `freeLimitExhaustionBehavior` | Require `useFreeLimit=true` and `freeLimitExhaustionBehavior="AutoPause"`; do not silently continue into paid overage |
 
-AzAPI is pinned now; its SQL resource body, SKU and region checks will be
-implemented and tested in D/8. AzureRM and AzAPI must not both own the same
+D/6 implements and tests the AzAPI SQL body, SKU and region policy, with live
+management API readback after apply. AzureRM and AzAPI must not both own the same
 database. These capabilities do not prove the subscription can claim a free
 offer or that the applications work with it. No price guarantee is made by
 the pins or mock tests.

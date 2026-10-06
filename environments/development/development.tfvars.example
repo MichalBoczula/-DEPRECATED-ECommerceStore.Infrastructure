@@ -1,5 +1,5 @@
 # Non-secret configuration only. Copy to development.auto.tfvars if needed.
-# Resource eligibility and network compatibility remain gated by D/5-D/6.
+# D/6 checks Free eligibility; D/7 configures access; D/9 verifies app compatibility.
 location    = "northeurope"
 name_prefix = "ecommerce"
 tags = {

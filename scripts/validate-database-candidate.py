@@ -1,15 +1,13 @@
-"""Approve only the five explicit D/6 candidate resources in development state."""
-import ipaddress
+"""Approve only the three explicit D/6 candidate resources in development state."""
 import json
 import re
 import sys
+import subprocess
 
 CANDIDATE = {
     'azurerm_mssql_server.database_candidate[0]': 'azurerm_mssql_server',
-    'azurerm_mssql_firewall_rule.database_candidate[0]': 'azurerm_mssql_firewall_rule',
     'azapi_resource.sql_candidate[0]': 'azapi_resource',
     'azapi_resource.mongo_candidate[0]': 'azapi_resource',
-    'azurerm_mongo_cluster_firewall_rule.database_candidate[0]': 'azurerm_mongo_cluster_firewall_rule',
 }
 LIVEDOCS = {
     'module.consumption[0].azurerm_virtual_network.host': 'azurerm_virtual_network',
@@ -53,7 +51,7 @@ def validate(plan):
             require(after['resource_group_name'] == 'rg-ecommerce-dev' and after['location'] == 'northeurope')
         if kind == 'azurerm_mssql_server':
             require(after['minimum_tls_version'] == '1.2' and after['version'] == '12.0')
-            require(after['public_network_access_enabled'] is True)
+            require(after['public_network_access_enabled'] is False)
         if address == 'azapi_resource.sql_candidate[0]':
             require(after['type'] == 'Microsoft.Sql/servers/databases@2023-08-01' and after['name'] == 'products-gate')
             require(after['location'] == 'northeurope')
@@ -65,24 +63,53 @@ def validate(plan):
             p = after['body']['properties']
             require(p['compute']['tier'] == 'Free' and p['storage'] == {'sizeGb': 32, 'type': 'PremiumSSD'})
             require(p['sharding']['shardCount'] == 1 and p['highAvailability']['targetMode'] == 'Disabled')
-            require(p['serverVersion'] == '8.0' and p['publicNetworkAccess'] == 'Enabled' and p['createMode'] == 'Default')
+            require(p['serverVersion'] == '8.0' and p['publicNetworkAccess'] == 'Disabled' and p['createMode'] == 'Default')
             require(p['authConfig']['allowedModes'] == ['NativeAuth'] and 'userName' not in p['administrator'])
-        if kind.endswith('firewall_rule'):
-            start = ipaddress.IPv4Address(after['start_ip_address'])
-            require(start.is_global and after['end_ip_address'] == str(start))
-            parent = 'server_id' if kind == 'azurerm_mssql_firewall_rule' else 'mongo_cluster_id'
-            target = 'azurerm_mssql_server.database_candidate' if parent == 'server_id' else 'azapi_resource.mongo_candidate'
-            require(target in resources[address.removesuffix('[0]')]['expressions'][parent]['references'])
         if change['actions'] != ['no-op']:
             counts[change['actions'][0]] += 1
     require(seen == set(CANDIDATE))
     return counts
 
 
+def validate_readback(server, database, mongo):
+    """Check service-reported offer and network settings without a data connection."""
+    require(server['properties']['publicNetworkAccess'] == 'Disabled')
+    sql_free({
+        'sku': {key: database['sku'][key] for key in ('name', 'tier', 'family', 'capacity')},
+        'properties': database['properties'],
+    })
+    p = mongo['properties']
+    require(p['compute']['tier'] == 'Free' and p['storage']['sizeGb'] == 32)
+    require(p['sharding']['shardCount'] == 1 and p['highAvailability']['targetMode'] == 'Disabled')
+    require(p['publicNetworkAccess'] == 'Disabled')
+    require(all(item['location'].replace(' ', '').lower() == 'northeurope' for item in (server, database, mongo)))
+
+
+def readback(names, subscription):
+    require(re.fullmatch(r'[0-9a-fA-F-]{36}', subscription))
+    require(re.fullmatch(r'sql-[a-z0-9-]+', names['sql_server']))
+    require(re.fullmatch(r'mongo-[a-z0-9-]+', names['mongo_cluster']))
+    require(names['sql_database'] == 'products-gate')
+    root = f'https://management.azure.com/subscriptions/{subscription}/resourceGroups/rg-ecommerce-dev/providers/'
+    sql = root + 'Microsoft.Sql/servers/' + names['sql_server']
+    urls = [sql + '?api-version=2023-08-01',
+            sql + '/databases/products-gate?api-version=2023-08-01',
+            root + 'Microsoft.DocumentDB/mongoClusters/' + names['mongo_cluster'] + '?api-version=2026-06-01']
+    responses = [json.loads(subprocess.run(
+        ['az', 'rest', '--method', 'get', '--url', url, '--output', 'json'],
+        capture_output=True, text=True, check=True, timeout=120).stdout) for url in urls]
+    validate_readback(*responses)
+
+
 if __name__ == '__main__':
     try:
         with open(sys.argv[1]) as file:
-            result = validate(json.load(file))
-        print(f"D/6 candidate plan verified: {result['create']} creates, {result['update']} updates; Free tiers, one operator IPv4, no app mutations.")
+            payload = json.load(file)
+        if len(sys.argv) == 4 and sys.argv[2] == '--readback':
+            readback(payload, sys.argv[3])
+            print('D/6 Azure readback verified: Free settings and public database access disabled. Application compatibility remains pending D/9.')
+        else:
+            result = validate(payload)
+            print(f"D/6 candidate plan verified: {result['create']} creates, {result['update']} updates; Free tiers, public database access disabled, no app mutations.")
     except Exception:
-        raise SystemExit('D/6 plan rejected; inspect raw diagnostics only in a secure session.')
+        raise SystemExit('D/6 verification failed; inspect raw diagnostics only in a secure session.')
