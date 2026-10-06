@@ -3,7 +3,7 @@ resource "azurerm_mssql_server" "database_candidate" {
   count                         = var.enable_database_candidate ? 1 : 0
   name                          = "sql-${module.context.name_prefix}-d6-${var.candidate_suffix}"
   resource_group_name           = local.retained_resource_group_name
-  location                      = var.location
+  location                      = var.candidate_sql_location
   version                       = "12.0"
   administrator_login           = "d6operator"
   administrator_login_password  = var.candidate_sql_password
@@ -17,7 +17,7 @@ resource "azapi_resource" "sql_candidate" {
   type      = "Microsoft.Sql/servers/databases@2023-08-01"
   name      = "products-gate"
   parent_id = azurerm_mssql_server.database_candidate[0].id
-  location  = var.location
+  location  = var.candidate_sql_location
   tags      = module.context.tags
   body = {
     sku = { name = "GP_S_Gen5_2", tier = "GeneralPurpose", family = "Gen5", capacity = 2 }
@@ -33,8 +33,7 @@ resource "azapi_resource" "sql_candidate" {
     }
   }
 }
-# Free instant provisioning assigns the admin username. AzAPI avoids forcing
-# an invented username or ignoring drift in AzureRM's required NativeAuth input.
+# ARM creation requires administrator.userName, including the Free tier.
 data "azurerm_client_config" "database_candidate" {
   count = var.enable_database_candidate ? 1 : 0
 }
@@ -47,7 +46,7 @@ resource "azapi_resource" "mongo_candidate" {
   tags      = module.context.tags
   body = {
     properties = {
-      administrator       = { password = var.candidate_mongo_password }
+      administrator       = { userName = "d6operator", password = var.candidate_mongo_password }
       authConfig          = { allowedModes = ["NativeAuth"] }
       compute             = { tier = "Free" }
       createMode          = "Default"
@@ -66,6 +65,7 @@ output "database_candidate" {
     sql_database  = azapi_resource.sql_candidate[0].name
     mongo_cluster = azapi_resource.mongo_candidate[0].name
     location      = var.location
+    sql_location  = var.candidate_sql_location
     selected      = false
   } : null
 }

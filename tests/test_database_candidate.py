@@ -22,7 +22,7 @@ def plan():
         minimum_tls_version='1.2', public_network_access_enabled=False)
     mongo = dict(type='Microsoft.DocumentDB/mongoClusters@2026-06-01', location='northeurope',
         parent_id='/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-ecommerce-dev',
-        body=dict(properties=dict(administrator=dict(password='Synthetic-Only-123!'), compute=dict(tier='Free'),
+        body=dict(properties=dict(administrator=dict(userName='d6operator',password='Synthetic-Only-123!'), compute=dict(tier='Free'),
             storage=dict(sizeGb=32,type='PremiumSSD'), sharding=dict(shardCount=1), highAvailability=dict(targetMode='Disabled'),
             serverVersion='8.0',publicNetworkAccess='Disabled',createMode='Default',authConfig=dict(allowedModes=['NativeAuth']))))
     values = [sql,
@@ -30,7 +30,7 @@ def plan():
         mongo]
     config = [dict(address=a.removesuffix('[0]'), expressions={}) for a in policy.CANDIDATE]
     config[1]['expressions']['parent_id'] = dict(references=['azurerm_mssql_server.database_candidate'])
-    return dict(complete=True, configuration=dict(root_module=dict(resources=config)), resource_changes=[
+    return dict(complete=True, variables=dict(candidate_sql_location=dict(value='northeurope')), configuration=dict(root_module=dict(resources=config)), resource_changes=[
         dict(address=a, type=k, mode='managed', change=dict(actions=['create'], after=value))
         for (a,k),value in zip(policy.CANDIDATE.items(),values)])
 
@@ -43,6 +43,29 @@ def readback():
 
 
 class CandidatePolicyTests(unittest.TestCase):
+    def test_missing_or_wrong_mongo_username_rejected(self):
+        for value in (None, 'other'):
+            p=plan(); admin=p['resource_changes'][2]['change']['after']['body']['properties']['administrator']
+            if value is None:
+                del admin['userName']
+            else:
+                admin['userName']=value
+            with self.assertRaises(ValueError): policy.validate(p)
+
+    def test_sql_region_can_change_independently_and_readback_must_match(self):
+        p=plan();p['variables']['candidate_sql_location']['value']='westeurope'
+        for change in p['resource_changes'][:2]:
+            change['change']['after']['location']='westeurope'
+        self.assertEqual(policy.validate(p),dict(create=3,update=0))
+        for index in (0,1,2):
+            wrong=copy.deepcopy(p);wrong['resource_changes'][index]['change']['after']['location']='francecentral'
+            with self.assertRaises(ValueError): policy.validate(wrong)
+        r=readback();r['server']['location']='West Europe';r['database']['location']='westeurope'
+        policy.validate_readback(r['server'],r['database'],r['mongo'],'westeurope')
+        for resource in ('server','database','mongo'):
+            wrong=copy.deepcopy(r);wrong[resource]['location']='francecentral'
+            with self.assertRaises(ValueError): policy.validate_readback(wrong['server'],wrong['database'],wrong['mongo'],'westeurope')
+
     def test_free_candidate_and_counted_parent_references(self):
         self.assertEqual(policy.validate(plan()), dict(create=3, update=0))
     def test_paid_billing_public_access_cross_group_and_replacement_rejected(self):
@@ -80,13 +103,13 @@ class CandidatePolicyTests(unittest.TestCase):
 
     def test_readback_rejects_paid_or_open_resources(self):
         r=readback();r['database']['sku']['extraServiceField']='allowed'
-        policy.validate_readback(r['server'],r['database'],r['mongo'])
+        policy.validate_readback(r['server'],r['database'],r['mongo'], 'northeurope')
         for resource, field, value in [('server','publicNetworkAccess','Enabled'),
                 ('database','freeLimitExhaustionBehavior','BillOverUsage'),
                 ('mongo','publicNetworkAccess','Enabled'),('mongo','compute',dict(tier='M10'))]:
             with self.subTest(resource=resource,field=field):
                 r=readback();r[resource]['properties'][field]=value
-                with self.assertRaises(ValueError): policy.validate_readback(r['server'],r['database'],r['mongo'])
+                with self.assertRaises(ValueError): policy.validate_readback(r['server'],r['database'],r['mongo'], 'northeurope')
 
 
 class CandidateWorkflowTests(unittest.TestCase):
@@ -100,7 +123,7 @@ class CandidateWorkflowTests(unittest.TestCase):
             (self.fixture.directory/tool).write_text(fake)
         self.env=self.fixture.env
         self.env.update(NAMES_JSON=json.dumps(dict(sql_server='sql-ecommerce-d6-reviewd6',
-            sql_database='products-gate', mongo_cluster='mongo-ecommerce-d6-reviewd6')),
+            sql_database='products-gate', mongo_cluster='mongo-ecommerce-d6-reviewd6', sql_location='northeurope')),
             READBACK_JSON=json.dumps(readback()))
         self.env.update(PLAN_JSON=json.dumps(plan()),TF_VAR_enable_database_candidate='true',DEPLOY_ACTION='plan')
     def run_candidate(self):
@@ -116,6 +139,17 @@ class CandidateWorkflowTests(unittest.TestCase):
         self.assertEqual(apply[-1],next(v[5:] for v in saved if v.startswith('-out=')))
         self.assertFalse(Path(apply[-1]).parent.exists())
         self.assertEqual(len([c for c in calls if c[:2]==['az','rest']]), 3)
+
+    def test_apply_readback_uses_configured_sql_region(self):
+        p=plan();p['variables']['candidate_sql_location']['value']='westeurope'
+        for change in p['resource_changes'][:2]:
+            change['change']['after']['location']='westeurope'
+        r=readback();r['server']['location']='westeurope';r['database']['location']='westeurope'
+        names=json.loads(self.env['NAMES_JSON']);names['sql_location']='westeurope'
+        self.env.update(DEPLOY_ACTION='apply',PLAN_JSON=json.dumps(p),READBACK_JSON=json.dumps(r),NAMES_JSON=json.dumps(names))
+        result=self.run_candidate();self.assertEqual(result.returncode,0,result.stderr)
+        r['database']['location']='northeurope';self.env['READBACK_JSON']=json.dumps(r)
+        self.assertNotEqual(self.run_candidate().returncode,0)
     def test_rejected_plan_and_failed_apply_do_not_leak(self):
         self.env['DEPLOY_ACTION']='apply'
         p=plan();p['resource_changes'][2]['change']['after']['body']['properties']['compute']['tier']='M10';self.env['PLAN_JSON']=json.dumps(p)

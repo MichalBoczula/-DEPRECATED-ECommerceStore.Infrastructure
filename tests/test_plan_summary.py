@@ -12,6 +12,17 @@ spec.loader.exec_module(renderer)
 
 
 class PlanSummaryTests(unittest.TestCase):
+    def test_sql_region_restriction_is_reported_without_raw_response(self):
+        message=dict(type='diagnostic',diagnostic=dict(severity='error',
+            address='azurerm_mssql_server.database_candidate[0]',summary='private-summary',
+            detail='ResourceOperationFailure ProvisioningDisabled private-response'))
+        with tempfile.NamedTemporaryFile(mode='w') as target:
+            target.write(json.dumps(message));target.flush()
+            result=subprocess.run(['python3',str(ROOT/'scripts/report-test-failure.py'),target.name,'--deployment'],capture_output=True,text=True)
+        self.assertIn('Azure error category: ProvisioningDisabled',result.stderr)
+        self.assertNotIn('private-response',result.stderr)
+        self.assertNotIn('private-summary',result.stderr)
+
     def test_deployment_errors_preserve_categories_and_never_detail(self):
         secret = 'SENSITIVE-RAW-DIAGNOSTIC'
         messages = [

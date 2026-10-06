@@ -7,14 +7,14 @@ CATEGORIES={'Test assertion failed','Unknown condition value','Invalid index','I
     'Preflight Validation: Invalid configuration','Invalid plan body configuration','Invalid state body configuration',
     'Invalid state body','Failed to retrieve resource','Failed to create/update resource','Error parsing ID'}
 DEPLOYMENT = '--deployment' in sys.argv[2:]
-FIELDS = ('candidate_suffix', 'candidate_sql_password', 'candidate_mongo_password')
+FIELDS = ('candidate_suffix', 'candidate_sql_location', 'candidate_sql_password', 'candidate_mongo_password')
 RESOURCES = ('azurerm_mssql_server.database_candidate[0]', 'azapi_resource.sql_candidate[0]', 'azapi_resource.mongo_candidate[0]')
 AZURE_CODES = ('AuthorizationFailed', 'LinkedAuthorizationFailed', 'MissingSubscriptionRegistration',
     'NoRegisteredProviderFound', 'InvalidApiVersionParameter', 'InvalidParameterValue',
     'InvalidResourceLocation', 'LocationNotAvailableForResourceType', 'SubscriptionNotRegistered',
     'RequestDisallowedByPolicy', 'QuotaExceeded', 'SkuNotAvailable', 'InvalidServerAdministratorPassword',
     'ResourceValidationFailed', 'InvalidResourceProperties', 'ResourceGroupNotFound', 'ParentResourceNotFound',
-    'ResourceNotFound', 'InvalidResourceId', 'InvalidResourceName', 'InternalServerError')
+    'ResourceNotFound', 'InvalidResourceId', 'InvalidResourceName', 'InternalServerError', 'ProvisioningDisabled')
 found = False
 for line in open(sys.argv[1],encoding='utf-8'):
     try: message=json.loads(line)
