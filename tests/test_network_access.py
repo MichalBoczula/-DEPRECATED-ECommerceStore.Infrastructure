@@ -218,26 +218,26 @@ $env:TFSTATE_RESOURCE_GROUP = 'rg-ecommerce-terraform-state'
 $env:TFSTATE_STORAGE_ACCOUNT = 'stecomtfc3229fd85c06d3'
 $env:TFSTATE_CONTAINER = 'development-state'
 $env:LIVEDOCS_ARCHIVE_STORAGE_ACCOUNT = 'existingarchive'
-$script:archiveChecks = 0
-$script:applies = 0
+$global:d7OfflineArchiveChecks = 0
+$global:d7OfflineApplies = 0
 function global:az {
     $global:LASTEXITCODE = 0
     if ($args[0] -eq 'account') { '11111111-1111-1111-1111-111111111111' }
-    elseif ($args[0] -eq 'storage') { $script:archiveChecks++ }
+    elseif ($args[0] -eq 'storage') { $global:d7OfflineArchiveChecks++ }
     else { throw 'Unexpected Azure request in offline test' }
 }
 function global:terraform {
     $global:LASTEXITCODE = 0
     if ($args[0] -eq 'version') { '{"terraform_version":"1.16.5"}' }
     elseif ($args -contains 'show') { Get-Content -LiteralPath $Fixture -Raw }
-    elseif ($args -contains 'apply') { $script:applies++ }
+    elseif ($args -contains 'apply') { $global:d7OfflineApplies++ }
     elseif ($args -contains 'output') {
         if ($args -contains 'livedocs') { throw 'Disabled LiveDocs must not be read or smoked' }
         '{"database_access_enabled":false}'
     }
 }
 & (Join-Path $Repository 'scripts/deploy-development-network.ps1') -Action apply
-if ($script:archiveChecks -ne 0 -or $script:applies -ne 1) { throw 'Disabled LiveDocs flag was treated as truthy' }
+if ($global:d7OfflineArchiveChecks -ne 0 -or $global:d7OfflineApplies -ne 1) { throw 'Disabled LiveDocs flag was treated as truthy' }
 ''', encoding='utf-8')
             environment = {name: value for name, value in os.environ.items() if not name.startswith('TF_CLI_ARGS')}
             environment['TEMP'] = directory
