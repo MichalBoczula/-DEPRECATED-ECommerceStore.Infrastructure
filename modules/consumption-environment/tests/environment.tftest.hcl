@@ -19,7 +19,7 @@ run "shared_consumption_environment" {
     error_message = "Prepare supported Storage/Key Vault endpoints; cross-region SQL uses IP ACLs."
   }
   assert {
-    condition     = length(azurerm_container_app_environment.host.workload_profile) == 1 && one(azurerm_container_app_environment.host.workload_profile).workload_profile_type == "Consumption" && azurerm_container_app_environment.host.logs_destination == null
+    condition     = length(azurerm_container_app_environment.host.workload_profile) == 1 && one(azurerm_container_app_environment.host.workload_profile).workload_profile_type == "Consumption" && contains([null, ""], azurerm_container_app_environment.host.logs_destination) && contains([null, ""], azurerm_container_app_environment.host.log_analytics_workspace_id)
     error_message = "Use only Consumption and streaming logs; no dedicated profile or analytics workspace."
   }
   assert {

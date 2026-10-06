@@ -56,6 +56,16 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(policy.validate(plan),{'create':4,'update':0})
         for item in plan['resource_changes']: item['change']['actions']=['no-op']
         self.assertEqual(policy.validate(plan),{'create':0,'update':0})
+    def test_provider_disabled_logging_default_and_configured_destinations(self):
+        plan = self.plan()
+        environment = next(item['change']['after'] for item in plan['resource_changes'] if item['type'] == 'azurerm_container_app_environment')
+        environment.update(logs_destination='', log_analytics_workspace_id='')
+        self.assertEqual(policy.validate(plan), {'create':4, 'update':0})
+        for field, value in (('logs_destination', 'log-analytics'), ('logs_destination', 'azure-monitor'),
+                             ('log_analytics_workspace_id', 'configured-workspace')):
+            rejected = copy.deepcopy(plan)
+            next(item['change']['after'] for item in rejected['resource_changes'] if item['type'] == 'azurerm_container_app_environment')[field] = value
+            with self.subTest(field=field), self.assertRaises(ValueError): policy.validate(rejected)
     def test_destroy_replacement_extra_missing_and_paid_resources_rejected(self):
         for actions in (['delete'],['delete','create'],['create','delete']):
             plan=self.plan(); plan['resource_changes'][0]['change']['actions']=actions

@@ -85,6 +85,41 @@ class NetworkPolicyTests(unittest.TestCase):
         self.assertEqual(policy.validate(plan(False,False,True))[0],dict(create=4,update=0,delete=0))
         self.assertEqual(policy.validate(plan())[0],dict(create=9,update=0,delete=0))
 
+    def test_azurerm_disabled_logging_default_passes_both_deployment_stages(self):
+        # AzureRM 5.8.0 defaults logs_destination to "", unlike Terraform mocks.
+        for access, databases, docs in ((False, False, False), (False, False, True), (True, True, True)):
+            p = plan(access, databases, docs)
+            environment = next(item['change']['after'] for item in p['resource_changes'] if item['type'] == 'azurerm_container_app_environment')
+            environment['logs_destination'] = ''
+            environment['log_analytics_workspace_id'] = ''
+            with self.subTest(access=access, docs=docs):
+                self.assertGreater(policy.validate(p)[0]['create'], 0)
+                for field, value in (('logs_destination', 'log-analytics'), ('logs_destination', 'azure-monitor'),
+                                     ('log_analytics_workspace_id', 'configured-workspace')):
+                    rejected = copy.deepcopy(p)
+                    next(item['change']['after'] for item in rejected['resource_changes'] if item['type'] == 'azurerm_container_app_environment')[field] = value
+                    with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                        policy.validate(rejected)
+
+    def test_stage_one_cli_accepts_disabled_logging_and_reports_safe_failure_location(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'plan.json'
+            p = plan(False, False, True)
+            environment = next(item['change']['after'] for item in p['resource_changes'] if item['type'] == 'azurerm_container_app_environment')
+            environment['logs_destination'] = ''
+            path.write_text(json.dumps(p), encoding='utf-8')
+            command = [sys.executable, str(ROOT / 'scripts/validate-network-plan.py'), str(path), '--verify-egress', SUBSCRIPTION]
+            result = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('4 creates, 0 updates, 0 obsolete firewall deletes', result.stdout)
+            environment['logs_destination'] = 'SENSITIVE-RAW-VALUE'
+            path.write_text(json.dumps(p), encoding='utf-8')
+            result = subprocess.run(command, capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('validate-network-plan.py:', result.stderr)
+            self.assertIn('D/7 verification diagnostic', result.stderr)
+            self.assertNotIn('SENSITIVE-RAW-VALUE', result.stdout + result.stderr)
+
     def test_only_obsolete_firewall_deletion_allowed(self):
         p=plan()
         item=copy.deepcopy(p['resource_changes'][-1])

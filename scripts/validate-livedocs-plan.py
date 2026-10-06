@@ -40,7 +40,8 @@ def validate(plan):
         if item["type"] == "azurerm_container_app_environment":
             profiles=after["workload_profile"]
             if (len(profiles) != 1 or profiles[0]["workload_profile_type"] != "Consumption"
-                    or profiles[0]["name"] != "Consumption" or after.get("logs_destination") is not None
+                    or profiles[0]["name"] != "Consumption" or after.get("logs_destination") not in (None, "")
+                    or after.get("log_analytics_workspace_id") not in (None, "")
                     or after.get("infrastructure_resource_group_name") != "rg-ecommerce-dev-aca-managed"):
                 raise ValueError("Paid profile/logging must not enter the D/4 plan.")
         if action != ["no-op"]: counts[action[0]]+=1

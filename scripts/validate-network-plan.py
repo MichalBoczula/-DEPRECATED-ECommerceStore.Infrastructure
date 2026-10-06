@@ -3,6 +3,8 @@ import argparse
 import importlib.util
 import json
 from pathlib import Path
+import sys
+import traceback
 
 ROOT = Path(__file__).resolve().parent
 
@@ -109,7 +111,8 @@ def validate(plan):
                 profiles = after['workload_profile']
                 require(len(profiles) == 1 and profiles[0]['name'] == 'Consumption' and profiles[0]['workload_profile_type'] == 'Consumption')
                 require(profiles[0].get('maximum_count') in (None, 0) and profiles[0].get('minimum_count') in (None, 0))
-                require(after.get('logs_destination') is None and after.get('log_analytics_workspace_id') is None)
+                # AzureRM's disabled destination defaults to ""; mock plans may use null.
+                require(after.get('logs_destination') in (None, '') and after.get('log_analytics_workspace_id') in (None, ''))
                 require(after['internal_load_balancer_enabled'] is False and after['public_network_access'] == 'Enabled' and after['zone_redundancy_enabled'] is False)
         else:
             require(False)
@@ -172,5 +175,10 @@ if __name__ == '__main__':
             if args.verify_egress:
                 verify_egress(variables, args.verify_egress)
             print(f"Reviewed D/7 plan: {counts['create']} creates, {counts['update']} updates, {counts['delete']} obsolete firewall deletes; no replacements or paid fallback.")
-    except Exception:
+    except Exception as error:
+        # Report source locations only: exception messages and plan values can contain secrets.
+        for frame in traceback.extract_tb(error.__traceback__):
+            filename = Path(frame.filename).name
+            if filename in ('validate-network-plan.py', 'validate-database-candidate.py', 'validate-livedocs-plan.py', 'discover-aca-egress.py'):
+                print(f'{filename}:{frame.lineno}: D/7 verification diagnostic', file=sys.stderr)
         raise SystemExit('D/7 verification failed; inspect private plan/Azure diagnostics. No apply was performed by this checker.')

@@ -77,6 +77,12 @@ routes/assets/source identity and archive existence are checked after apply.
 No automatic apply follows the separate plan command. Readback failures leave
 recorded resources in state for investigation or complete-state teardown.
 
+AzureRM represents disabled log forwarding as `logs_destination = ""`; mock
+plans may use `null`. Both are accepted when no Log Analytics workspace is
+configured. If verification fails, the checker prints repository filenames and
+line numbers without private plan values. Share those diagnostic lines for
+investigation; do not share the full plan JSON or bypass the checker.
+
 ## Stage two: discover egress and restrict databases
 
 In the same terminal (the lifecycle script sets `ARM_SUBSCRIPTION_ID`):
