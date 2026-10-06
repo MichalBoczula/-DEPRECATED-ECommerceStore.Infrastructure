@@ -85,3 +85,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           terraform "-chdir=environments/development" test "-test-directory=tests"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Check local Windows Azure CLI readback launcher without Azure
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -p test_candidate_readback_cli.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

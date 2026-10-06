@@ -1,6 +1,7 @@
 """Approve only the three explicit D/6 candidate resources in development state."""
 import json
 import re
+import shutil
 import sys
 import subprocess
 
@@ -98,8 +99,11 @@ def readback(names, subscription):
     urls = [sql + '?api-version=2023-08-01',
             sql + '/databases/products-gate?api-version=2023-08-01',
             root + 'Microsoft.DocumentDB/mongoClusters/' + names['mongo_cluster'] + '?api-version=2026-06-01']
+    # Windows installs Azure CLI as az.cmd; resolve PATH/PATHEXT explicitly.
+    azure_cli = shutil.which('az')
+    require(azure_cli is not None)
     responses = [json.loads(subprocess.run(
-        ['az', 'rest', '--method', 'get', '--url', url, '--output', 'json'],
+        [azure_cli, 'rest', '--method', 'get', '--url', url, '--output', 'json'],
         capture_output=True, text=True, check=True, timeout=120).stdout) for url in urls]
     validate_readback(*responses, names['sql_location'])
 

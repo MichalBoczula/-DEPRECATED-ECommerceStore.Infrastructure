@@ -1,6 +1,19 @@
 # D/6: provision the free database candidate
 
-Status: implementation prepared; **live Azure provisioning pending**. D/6 provisions a provisional backend and verifies its Free settings. D/7 configures access from Container Apps; D/9 verifies real driver compatibility before accepting the backend for the applications. D/17 covers business flows and D/19 covers destroy/recreate proof. The D/5 application release remains unchanged.
+Status: the operator reported local creation on 2026-10-06 of SQL server
+`sql-ecommerce-dev-d6-mike2026` and database `products-gate` in France Central,
+and `mongo-ecommerce-dev-d6-mike2026` in North Europe. Post-apply Free/network
+readback has not been supplied; teardown is requested and unverified. D/6
+remains provisional. D/7 configures access from Container Apps; D/9 verifies
+real driver compatibility before accepting the backend for the applications.
+D/17 covers business flows and D/19 covers destroy/recreate proof. The D/5
+application release remains unchanged.
+
+Use the [local PowerShell runbook](local-development.md) for provisioning,
+Free readback and teardown against the existing remote state. No GitHub
+environment input is required for that route. The workflow instructions below
+remain an optional OIDC execution route. The [D/7 preparation](development-network-access.md)
+accounts for SQL and ACA being in different regions.
 
 ## Candidate and cost boundary
 
@@ -31,7 +44,7 @@ PR CI runs a native MongoDB 8 replica set and SQL Server 2022 Developer positive
 
 The report checker requires all 16 .NET checks and all 15 Payments cases plus their cleanup and source/endpoint check (31 Payments results). It verifies the pinned driver versions and Payments source commit. Missing checks, a wrong source/driver, or a success flag paired with a failed check cannot produce a passing summary. Failed suites show every omitted check as `FAIL`; arbitrary check labels are rejected before publication.
 
-## Provisioning after merging this PR
+## Optional GitHub provisioning
 
 1. In your authenticated PowerShell terminal, select the existing development subscription. Register `Microsoft.Sql` and `Microsoft.DocumentDB` if needed (foundation/operator responsibility; the application provider deliberately does not auto-register):
 
@@ -47,17 +60,17 @@ The report checker requires all 16 .NET checks and all 15 Payments cases plus th
    | Type | Name | Value |
    | --- | --- | --- |
    | Variable | `DATABASE_CANDIDATE_ENABLED` | `true` |
-   | Variable | `DATABASE_CANDIDATE_SQL_LOCATION` | SQL-only region after checking subscription availability, e.g. `westeurope`; absent means `northeurope` |
+   | Variable | `DATABASE_CANDIDATE_SQL_LOCATION` | SQL-only region after checking subscription availability, e.g. `francecentral` (availability/admission still requires verification); absent means `northeurope` |
    | Variable | `DATABASE_CANDIDATE_SUFFIX` | Your unique 6–16 lowercase letters/digits, e.g. `mike2026d6` |
    | Secret | `DATABASE_CANDIDATE_SQL_PASSWORD` | A strong unique 16–128-character password |
    | Secret | `DATABASE_CANDIDATE_MONGO_PASSWORD` | Another strong unique 16–128-character password |
 
    Keep `LIVEDOCS_ENABLED` equal to its existing deployment setting. Existing LiveDocs resources must remain no-op. The D/4 deployment workflow is blocked while the D/6 candidate is enabled. The candidate workflow never modifies LiveDocs; drift causes policy rejection. Do not remove the candidate flag/secrets before teardown.
 
-   **SQL regional restriction:** on 2026-10-06 this subscription returned `ProvisioningDisabled` for SQL server creation in North Europe. Re-registering providers or changing passwords will not resolve this restriction. Check another region before setting `DATABASE_CANDIDATE_SQL_LOCATION`:
+   **SQL regional restrictions:** on 2026-10-06 this subscription returned `ProvisioningDisabled` in North Europe and `RequestDisallowedByAzure` in West Europe (new-customer region admission restriction), even though West Europe advertised the SQL SKU as available. The Mongo cluster was created in North Europe; retain it during SQL-only retries. Re-registering providers or changing passwords will not resolve this restriction. Check another region before setting `DATABASE_CANDIDATE_SQL_LOCATION`:
 
    ```powershell
-   az sql db list-editions --location westeurope --service-objective GP_S_Gen5_2 --available --output table
+   az sql db list-editions --location francecentral --service-objective GP_S_Gen5_2 --available --output table
    ```
 
    This reports subscription SKU availability; it does not guarantee successful server creation or eligibility for the Free offer. If no available result is returned, check another region or request the SQL regional exception through Azure support. Microsoft requires all SQL Free databases in a subscription to use the same region, so check any existing Free databases before the first successful creation here. Mongo Free and the shared LiveDocs environment stay in North Europe; do not change the root `location` to work around the SQL restriction.
@@ -68,17 +81,23 @@ The report checker requires all 16 .NET checks and all 15 Payments cases plus th
 
 4. After apply, the workflow reads the three resources through Azure's management API and verifies SQL Free/AutoPause, DocumentDB Free, region and disabled public access. This uses the existing GitHub OIDC login. No workstation IP, local SDK, connection string or driver probe is required. Record the successful plan/apply workflow URLs, then continue with D/7.
 
-   Planning failures report Terraform's source location and an allowlisted category, candidate input/resource name or known Azure error code. Passwords, diagnostic detail, snippets and raw plans are never printed. A failed plan does not run apply; use its safe diagnostic to investigate before retrying. Destroy is for resources already recorded by a prior apply.
+   Planning and apply failures report Terraform's source location and an allowlisted category, candidate input/resource name or known Azure error code. Documented SQL creation categories and known Azure error codes are extracted from both summary and detail, including `RequestDisallowedByAzure` and `RegionDoesNotAllowProvisioning`. Raw summaries, passwords, diagnostic detail, snippets and raw plans are never printed. An unknown code can still require private Activity Log inspection; do not infer eligibility from a generic diagnostic. A failed plan does not run apply; use its safe diagnostic to investigate before retrying. Destroy is for resources already recorded by a prior apply.
 
    Development uses standard Terraform/provider schema validation with AzAPI's optional ARM preflight disabled. AzAPI 2.13.0 substitutes generated parent IDs when a parent server is unknown during planning; our SQL server is created in the same deployment. With optional preflight disabled, the live plan completed on 2026-10-06. The subsequent apply exposed the independent SQL regional restriction and Mongo create-body error above; the earlier filtered plan log did not establish its cause. Disabling preflight is not proof of eligibility. The saved-plan Free/scope policy remains mandatory; Azure validates the real creation request during apply, and automatic ARM readback must pass before D/6 is complete.
 
-   References: [pinned provider preflight code](https://github.com/Azure/terraform-provider-azapi/blob/v2.13.0/internal/services/azapi_resource.go), [placeholder generation](https://github.com/Azure/terraform-provider-azapi/blob/v2.13.0/internal/services/preflight/preflight.go), [Microsoft preflight documentation](https://learn.microsoft.com/en-us/azure/developer/terraform/how-to-use-azapi-preflight-validation).
+   References: [SQL server create/update error codes](https://learn.microsoft.com/en-us/rest/api/sql/servers/create-or-update?view=rest-sql-2023-08-01), [West Europe region admission policy](https://learn.microsoft.com/en-us/azure/azure-resource-manager/troubleshooting/error-region-access-policy), [Azure deployment error codes](https://learn.microsoft.com/en-us/azure/azure-resource-manager/troubleshooting/common-deployment-errors), [pinned provider preflight code](https://github.com/Azure/terraform-provider-azapi/blob/v2.13.0/internal/services/azapi_resource.go), [placeholder generation](https://github.com/Azure/terraform-provider-azapi/blob/v2.13.0/internal/services/preflight/preflight.go), [Microsoft preflight documentation](https://learn.microsoft.com/en-us/azure/developer/terraform/how-to-use-azapi-preflight-validation).
 
    If you previously applied the older operator-IP version, the new plan will reject removal of its firewall resources under the existing no-delete policy. Use **Destroy development** first and then apply the simplified version. Destroy also removes LiveDocs; the retained state foundation and independent archive survive. Keep the candidate flag and passwords configured while the candidate exists, including for teardown. An apply or readback failure leaves D/6 pending; inspect privately or use destroy for recorded partial resources.
 
 ## Acceptance and remaining work
 
-D/6 is complete when a real apply succeeds and automatic Azure readback confirms the Free settings and disabled public access. Provisioning does not prove Mongo compatibility and `database_candidate.selected` remains false. Native CI is harness evidence only.
+D/6 is complete when a real apply succeeds and the existing Azure readback
+checker confirms Free settings and disabled public access, whether invoked
+locally or through the optional workflow. Record the safe local summary and
+commit/action counts, or workflow URLs. Provisioning does not prove Mongo
+compatibility and `database_candidate.selected` remains false. Native CI is
+harness evidence only. The operator-requested teardown does not replace D/19's
+full lifecycle proof.
 
 - **D/7:** configure SQL/Mongo access from the existing ACA environment, with no private endpoints or paid egress gateway. Changing the disabled public-access setting requires that reviewed network change.
 - **D/8:** reuse these state-owned resources when adding databases, Blob Storage and Key Vault; do not create duplicate candidates or declare them accepted prematurely.

@@ -12,6 +12,23 @@ spec.loader.exec_module(renderer)
 
 
 class PlanSummaryTests(unittest.TestCase):
+    def test_sql_errors_in_summary_and_detail_remain_private(self):
+        for field in ('summary','detail'):
+            for code in ('RequestDisallowedByAzure','RegionDoesNotAllowProvisioning','ServerQuotaExceeded',
+                    'SubscriptionDisabled','PasswordNotComplex','PECsNotExistingToDenyPublicNetworkAccess',
+                    'NameAlreadyExistsSoftDeleted','ConflictingServerOperation','OperationTimedOut'):
+                with self.subTest(field=field,code=code):
+                    diagnostic=dict(severity='error',address='azurerm_mssql_server.database_candidate[0]',
+                        summary='SENSITIVE-SUMMARY',detail='SENSITIVE-DETAIL')
+                    diagnostic[field]=code+' SENSITIVE-RAW-RESPONSE subscription-id password'
+                    with tempfile.NamedTemporaryFile(mode='w') as target:
+                        target.write(json.dumps(dict(type='diagnostic',diagnostic=diagnostic)));target.flush()
+                        result=subprocess.run(['python3',str(ROOT/'scripts/report-test-failure.py'),target.name,'--deployment'],capture_output=True,text=True)
+                    self.assertIn('Azure error category: '+code,result.stderr)
+                    self.assertNotIn('SENSITIVE',result.stderr+result.stdout)
+                    self.assertNotIn('subscription-id',result.stderr+result.stdout)
+                    self.assertNotIn('password',result.stderr+result.stdout)
+
     def test_sql_region_restriction_is_reported_without_raw_response(self):
         message=dict(type='diagnostic',diagnostic=dict(severity='error',
             address='azurerm_mssql_server.database_candidate[0]',summary='private-summary',
