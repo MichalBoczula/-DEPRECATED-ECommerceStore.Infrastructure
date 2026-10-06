@@ -14,9 +14,15 @@ phase=initialization
 cleanup() {
   code=$?
   if (( code != 0 )); then
+    if [[ $phase == planning || $phase == application ]]; then
+      diagnostic_log="$work_dir/plan.log"
+      [[ $phase != application ]] || diagnostic_log="$work_dir/apply.log"
+      python3 "$repo_root/scripts/report-test-failure.py" "$diagnostic_log" --deployment || true
+    fi
     if [[ $phase == planning ]]; then
-      python3 "$repo_root/scripts/report-test-failure.py" "$work_dir/plan.log" --deployment || true
       echo '::error::D/6 plan failed; no apply was attempted by this run. Raw diagnostics remain private.' >&2
+    elif [[ $phase == application ]]; then
+      echo '::error::D/6 apply failed; inspect the safe error above. Resources may already be recorded in state; Destroy development is available for cleanup.' >&2
     else
       printf '::error::D/6 candidate failed during %s; private Terraform details withheld.\n' "$phase" >&2
     fi
@@ -38,7 +44,7 @@ phase=policy
 python3 "$repo_root/scripts/validate-database-candidate.py" "$work_dir/plan.json"
 if [[ $DEPLOY_ACTION == apply ]]; then
   phase=application
-  terraform apply -input=false -lock=true -lock-timeout=5m "$work_dir/candidate.tfplan" >"$work_dir/apply.log" 2>&1
+  terraform apply -json -input=false -lock=true -lock-timeout=5m "$work_dir/candidate.tfplan" >"$work_dir/apply.log" 2>"$work_dir/apply-stderr.log"
   phase=readback
   terraform output -json database_candidate >"$work_dir/names.json" 2>"$work_dir/output.log"
   python3 "$repo_root/scripts/validate-database-candidate.py" "$work_dir/names.json" --readback "$ARM_SUBSCRIPTION_ID"

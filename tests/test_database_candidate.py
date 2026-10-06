@@ -159,3 +159,20 @@ class CandidateWorkflowTests(unittest.TestCase):
         result=self.run_candidate()
         self.assertNotEqual(result.returncode,0)
         self.assertIn('readback',result.stderr)
+
+    def test_apply_azure_rejection_is_reported_without_detail(self):
+        self.env.update(DEPLOY_ACTION='apply',FAIL_OPERATION='terraform:apply')
+        fake=(self.fixture.directory/'terraform').read_text()
+        diagnostic=dict(type='diagnostic',diagnostic=dict(severity='error',summary='Failed to create/update resource',
+            address='azapi_resource.sql_candidate[0]',detail='AuthorizationFailed SENSITIVE-RAW-DIAGNOSTIC'))
+        fake=fake.replace('print("SENSITIVE-RAW-DIAGNOSTIC", file=sys.stderr)',
+            'print('+repr(json.dumps(diagnostic))+')')
+        (self.fixture.directory/'terraform').write_text(fake)
+        result=self.run_candidate()
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('Azure error category: AuthorizationFailed',result.stderr)
+        self.assertIn('Resources may already be recorded in state',result.stderr)
+        self.assertNotIn('SENSITIVE-RAW-DIAGNOSTIC',result.stdout+result.stderr)
+        apply=next(c for c in self.fixture.calls() if c[:2]==['terraform','apply'])
+        self.assertIn('-json',apply)
+        self.assertFalse(Path(apply[-1]).parent.exists())

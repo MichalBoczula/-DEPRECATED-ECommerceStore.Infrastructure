@@ -34,6 +34,22 @@ class PlanSummaryTests(unittest.TestCase):
         self.assertIn('Azure error category: AuthorizationFailed',result.stderr)
         self.assertNotIn('Invalid body',result.stderr)
 
+    def test_azapi_preflight_and_parent_failures_are_recognized(self):
+        secret='SENSITIVE-RAW-DIAGNOSTIC'
+        message=dict(type='diagnostic',diagnostic=dict(severity='error',
+            summary='Preflight Validation: Invalid configuration',
+            address='azapi_resource.sql_candidate[0]',
+            detail='ResourceValidationFailed ResourceGroupNotFound '+secret,
+            range=dict(filename='database-candidate.tf',start=dict(line=15))))
+        with tempfile.NamedTemporaryFile(mode='w') as target:
+            target.write(json.dumps(message));target.flush()
+            result=subprocess.run(['python3',str(ROOT/'scripts/report-test-failure.py'),target.name,'--deployment'],capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertIn('Preflight Validation: Invalid configuration',result.stderr)
+        self.assertIn('Azure error category: ResourceValidationFailed',result.stderr)
+        self.assertIn('Azure error category: ResourceGroupNotFound',result.stderr)
+        self.assertNotIn(secret,result.stdout+result.stderr)
+
     def test_failure_report_prints_only_location_and_allowlisted_category(self):
         secret = "SENSITIVE-RAW-DIAGNOSTIC"
         with tempfile.NamedTemporaryFile(mode="w") as target:

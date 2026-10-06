@@ -6,6 +6,9 @@ provider "azurerm" {
 }
 
 provider "azapi" {
-  # D/6 uses this for SQL's explicit free-offer properties.
-  enable_preflight = true
+  # Keep normal schema/plan validation. Optional ARM preflight substitutes fake
+  # parent IDs when planning a database under a server created in the same apply.
+  # Azure validates the real request during apply; the workflow checks Free
+  # settings before apply and reads them back afterwards.
+  enable_preflight = false
 }
