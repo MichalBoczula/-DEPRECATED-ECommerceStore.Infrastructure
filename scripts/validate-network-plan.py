@@ -18,6 +18,7 @@ def load(name, filename):
 
 candidate = load('d7_candidate', 'validate-database-candidate.py')
 egress = load('d7_egress', 'discover-aca-egress.py')
+data_services = load('d8_data_services', 'validate-data-services.py')
 NETWORK = {address: kind for address, kind in candidate.LIVEDOCS.items() if 'module.consumption' in address}
 LIVE = 'module.livedocs[0].azurerm_container_app.host'
 RULES = {'azurerm_mssql_firewall_rule.aca': 'azurerm_mssql_firewall_rule',
@@ -39,9 +40,10 @@ def boolean_input(value):
     return value == 'true'
 
 
-def validate(plan):
+def validate(plan, subscription=None):
     require(not plan.get('errored') and plan.get('complete') is not False)
     variables = {name: item['value'] for name, item in plan['variables'].items()}
+    variables['enable_data_services'] = boolean_input(variables.get('enable_data_services', False))
     for name in ('enable_database_access', 'enable_database_candidate', 'enable_livedocs', 'enable_shared_environment'):
         variables[name] = boolean_input(variables[name])
     enabled = variables['enable_database_access']
@@ -59,6 +61,7 @@ def validate(plan):
     seen_rules = {kind: set() for kind in RULES}
     counts = {'create': 0, 'update': 0, 'delete': 0}
     candidate_changes = []
+    data_changes = []
     for resource in plan.get('resource_changes', []):
         if resource.get('mode') != 'managed':
             continue
@@ -91,6 +94,9 @@ def validate(plan):
             else:
                 require(ip in ips)
                 seen_rules[rule_base].add(ip)
+        elif address in data_services.ADDRESSES:
+            require(variables['enable_data_services'])
+            data_changes.append(resource)
         elif address in candidate.CANDIDATE:
             require(databases)
             candidate_changes.append(resource)
@@ -131,6 +137,8 @@ def validate(plan):
     require(set(NETWORK).issubset(seen))
     require((LIVE in seen) == livedocs)
     require(all(values == set(ips) for values in seen_rules.values()))
+    if variables['enable_data_services']:
+        data_services.validate(plan, data_changes, subscription)
     if databases:
         candidate.validate({**plan, 'resource_changes': candidate_changes}, public_access_enabled=enabled)
         resources = {item['address']: item['change']['after'] for item in candidate_changes}
@@ -172,15 +180,20 @@ if __name__ == '__main__':
     parser.add_argument('json_file', type=Path)
     parser.add_argument('--verify-egress', metavar='SUBSCRIPTION')
     parser.add_argument('--readback', metavar='SUBSCRIPTION')
+    parser.add_argument('--data-readback', metavar='SUBSCRIPTION')
     args = parser.parse_args()
     try:
         payload = json.loads(args.json_file.read_text(encoding='utf-8'))
-        if args.readback:
+        if args.data_readback:
+            require(not args.verify_egress and not args.readback)
+            data_services.readback(payload, args.data_readback, egress.arm_get)
+            print('D/8 ARM readback verified: Standard LRS private containers, Entra-only access, subnet ACLs and Standard RBAC vault. Runtime access remains D/9/D/12.')
+        elif args.readback:
             require(not args.verify_egress)
             readback(payload, args.readback)
             print('D/7 ARM readback verified: Free databases, exact ACA IPv4 firewall rules. Live connectivity and D/9 driver compatibility remain separate checks.')
         else:
-            counts, variables = validate(payload)
+            counts, variables = validate(payload, subscription=args.verify_egress)
             require(not variables['enable_database_access'] or args.verify_egress)
             if args.verify_egress:
                 verify_egress(variables, args.verify_egress)
@@ -189,6 +202,6 @@ if __name__ == '__main__':
         # Report source locations only: exception messages and plan values can contain secrets.
         for frame in traceback.extract_tb(error.__traceback__):
             filename = Path(frame.filename).name
-            if filename in ('validate-network-plan.py', 'validate-database-candidate.py', 'validate-livedocs-plan.py', 'discover-aca-egress.py'):
+            if filename in ('validate-network-plan.py', 'validate-database-candidate.py', 'validate-livedocs-plan.py', 'discover-aca-egress.py', 'validate-data-services.py'):
                 print(f'{filename}:{frame.lineno}: D/7 verification diagnostic', file=sys.stderr)
         raise SystemExit('D/7 verification failed; inspect private plan/Azure diagnostics. No apply was performed by this checker.')

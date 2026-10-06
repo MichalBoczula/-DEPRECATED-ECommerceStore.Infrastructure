@@ -9,7 +9,7 @@ Terraform using the [local PowerShell runbook](docs/local-development.md).
 GitHub CI validates code; existing manual deployment workflows remain optional.
 Local runs use the same Azure Blob state and locking, with no workstation-IP
 database rule. Runbooks cover the D/6 database stage, [D/7 network access](docs/development-network-access.md)
-and complete-state teardown.
+[D/8 data services](docs/development-data-services.md) and complete-state teardown.
 
 ## Deployment status
 
@@ -38,7 +38,11 @@ and complete-state teardown.
 - **D/7:** [local network access](docs/development-network-access.md) implements
   independent shared-environment activation, ACA egress discovery and exact-IP
   SQL/Mongo firewall rules. Storage/Key Vault subnet endpoints prepare D/8.
-  Live apply, source observation and allowed/denied connectivity remain pending.
+  Stage-one deployment and teardown are operator-reported complete. Source
+  observation and allowed/denied connectivity remain pending.
+- **D/8:** [business data infrastructure](docs/development-data-services.md) adds
+  private invoice/photo containers and a subnet-restricted RBAC Key Vault,
+  reusing Free database resources. Live provisioning/readback remains pending.
 
 Full application
 apply/destroy/reapply and residual-cost verification belong to D/19. The
@@ -51,6 +55,7 @@ persistent foundation lives in
 provides reusable names and tags without Azure resources or credentials. `modules/consumption-environment` owns the VNet/subnet/shared ACA environment;
 `modules/livedocs` owns the documentation host and its immutable image. The
 persistent archive lives in a separate `foundations/livedocs` root/state.
+`modules/data-services` owns disposable business storage and Key Vault.
 Database candidates are implemented; business services and frontend remain later deployment tasks. See [module usage and versioning](modules/README.md) and the
 [ADR index](docs/adr/README.md).
 
@@ -71,7 +76,7 @@ OIDC permission or backend access.
 
 After a merge, successful `Terraform CI` on `main` triggers **Publish module
 version**, which creates `modules-v<modules/VERSION>` at the tested commit.
-`modules-v0.1.0` and `modules-v0.2.0` are published. D/7 proposes `0.3.0`;
+`modules-v0.1.0` and `modules-v0.2.0` are published. D/8 proposes `0.4.0`;
 its immutable tag is published only after successful merged main CI. Existing tags are never moved. Module changes
 require a version bump. Portfolio roots will consume a published tag rather
 than `main`.
@@ -158,7 +163,7 @@ remote state. All of them remain outside the application state. Give the identit
 `Storage Blob Data Contributor` on the development state container and `Reader`
 on the state account for the final existence check. The custom management role
 is assigned only on the retained application group. Application role-assignment
-delegation stays disabled until D/8 needs specific data roles.
+delegation stays disabled until D/9 needs specific runtime data roles.
 It must have no management permission to delete bootstrap resources. If dev
 and portfolio share an account, prefer distinct containers for data-plane RBAC;
 their blob keys and Terraform states must also be distinct.
@@ -240,7 +245,7 @@ terraform -chdir=environments/development providers lock -platform=linux_amd64 -
 ```
 
 D/5 records application images, ports, configuration and dependencies in
-`releases/development.json`. Next: execute the local D/7 access stages;
+`releases/development.json`. Next: provision D/8 locally and finish the D/7 access checks;
 D/9 verifies real driver compatibility and adds the
 five business apps to this shared environment. LiveDocs publishes an image
 only; Infrastructure owns its Azure deployment and image updates.

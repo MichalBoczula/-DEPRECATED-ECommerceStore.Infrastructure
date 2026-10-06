@@ -40,3 +40,15 @@ neither regional capacity nor Free-offer eligibility.
 
 - [Mongo Bicep creation contract](https://learn.microsoft.com/en-us/azure/documentdb/quickstart-bicep)
 - [SQL subscription edition availability](https://learn.microsoft.com/en-us/cli/azure/sql/db#az-sql-db-list-editions)
+
+## D/8 storage and vault boundary
+
+AzureRM 5.8.0's storage container implementation uses Resource Manager
+container operations when `storage_account_id` is supplied. Terraform therefore
+creates private business containers without opening the Blob data plane to the
+operator. Key Vault uses RBAC and a default-deny ACA-subnet ACL. Secret values
+are written separately through the ARM secrets child resource API (2023-07-01),
+not Terraform secret resources. D/9 supplies runtime data roles and verifies
+application access. The development provider explicitly purges disposable
+vaults on destroy and disables recovery of soft-deleted vaults. Purge requires
+operator permission; D/19 audits remnants. No dependency pin changes are needed.

@@ -70,6 +70,20 @@ try {
     if ($Action -eq 'apply') {
         terraform "-chdir=$terraformRoot" apply -input=false -lock-timeout=5m $planFile
         if ($LASTEXITCODE -ne 0) { throw 'Apply failed; inspect partial state and keep the cleanup inputs' }
+        if ([string]$plannedVariables.enable_data_services.value -eq 'true') {
+            $dataText = terraform "-chdir=$terraformRoot" output -json data_services
+            if ($LASTEXITCODE -ne 0) { throw 'Data-services output read failed' }
+            [IO.File]::WriteAllText($jsonFile, ($dataText -join "`n"), [Text.UTF8Encoding]::new($false))
+            python (Join-Path $PSScriptRoot 'validate-network-plan.py') $jsonFile --data-readback $env:ARM_SUBSCRIPTION_ID
+            if ($LASTEXITCODE -ne 0) { throw 'D/8 infrastructure readback failed; retain inputs for investigation or teardown' }
+        }
+        if ([string]$plannedVariables.enable_database_candidate.value -eq 'true' -and [string]$plannedVariables.enable_database_access.value -ne 'true') {
+            $candidateText = terraform "-chdir=$terraformRoot" output -json database_candidate
+            if ($LASTEXITCODE -ne 0) { throw 'Database output read failed' }
+            [IO.File]::WriteAllText($jsonFile, ($candidateText -join "`n"), [Text.UTF8Encoding]::new($false))
+            python (Join-Path $PSScriptRoot 'validate-database-candidate.py') $jsonFile --readback $env:ARM_SUBSCRIPTION_ID
+            if ($LASTEXITCODE -ne 0) { throw 'Free database readback failed; retain inputs for investigation or teardown' }
+        }
         if ($liveDocsEnabled) {
             $liveText = terraform "-chdir=$terraformRoot" output -json livedocs
             if ($LASTEXITCODE -ne 0) { throw 'LiveDocs output read failed' }

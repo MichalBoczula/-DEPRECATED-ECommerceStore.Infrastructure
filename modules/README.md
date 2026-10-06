@@ -2,16 +2,17 @@
 
 Modules: [deployment-context](deployment-context/README.md),
 [consumption-environment](consumption-environment/README.md) and
-[livedocs](livedocs/README.md). Development tests these together using local
+[livedocs](livedocs/README.md), plus
+[data-services](data-services/README.md). Development tests these together using local
 sources. The ACA environment is shared by LiveDocs now and the five business
 apps in D/9. Persistent archive storage is a separate operator root, not a
 module in application state.
 
 ## Version contract
 
-`modules/VERSION` versions all modules together. D/7 proposes version `0.3.0` for the subnet endpoint change.
+`modules/VERSION` versions all modules together. D/8 proposes version `0.4.0` for data services and the subnet ID output.
 Successful main-branch Terraform CI triggers tag publication at that exact tested
-commit. `modules-v0.1.0` and `modules-v0.2.0` are published. The new tag becomes available after D/7 is
+commit. `modules-v0.1.0` and `modules-v0.2.0` are published. The new tag becomes available after D/8 is
 merged and its main CI and publication succeed. The publisher has repository contents write
 permission and no Azure access. It never overwrites a tag.
 
@@ -42,5 +43,5 @@ state until teardown or upgrade succeeds; a Git rollback alone does not undo
 Azure changes.
 
 D/5's release manifest retains its verified `modules-v0.2.0` publication
-provenance. Development tests D/7 against local 0.3.0 modules. Update consumer
+provenance. Development tests D/8 against local 0.4.0 modules. Update consumer
 release provenance only after the new immutable tag has actually been published.
