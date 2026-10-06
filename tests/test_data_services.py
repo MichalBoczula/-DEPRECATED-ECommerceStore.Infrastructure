@@ -3,6 +3,7 @@ import copy
 import importlib.util
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -143,3 +144,49 @@ class DataServicesTests(unittest.TestCase):
             with self.subTest(mutation=mutation),patch.object(setter.subprocess,'run') as run,self.assertRaises(ValueError):
                 setter.write_secret(data,{'id':sub},name,value)
             run.assert_not_called()
+
+
+class DataServicesLifecycleTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which('pwsh'), 'PowerShell required for local lifecycle execution')
+    def test_readback_failure_stops_after_apply_and_cleans_private_plan(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            p=plan()
+            for name in ('enable_database_access','enable_database_candidate','enable_livedocs','enable_shared_environment'):
+                p['variables'][name]['value']=str(p['variables'][name]['value']).lower()
+            root.joinpath('plan.json').write_text(json.dumps(p),encoding='utf-8')
+            root.joinpath('run.ps1').write_text("""param([string]$Repository,[string]$Fixture)
+$ErrorActionPreference='Stop'
+$env:TFSTATE_RESOURCE_GROUP='rg-ecommerce-terraform-state'
+$env:TFSTATE_STORAGE_ACCOUNT='stecomtfc3229fd85c06d3'
+$env:TFSTATE_CONTAINER='development-state'
+$global:d8Applies=0
+$global:d8Readbacks=0
+function global:az { $global:LASTEXITCODE=0; '11111111-1111-1111-1111-111111111111' }
+function global:terraform {
+    $global:LASTEXITCODE=0
+    if ($args[0] -eq 'version') { '{\"terraform_version\":\"1.16.5\"}' }
+    elseif ($args -contains 'show') { Get-Content -LiteralPath $Fixture -Raw }
+    elseif ($args -contains 'apply') { $global:d8Applies++ }
+    elseif ($args -contains 'output') {
+        if ($args -notcontains 'data_services') { throw 'Readback failure must stop subsequent outputs' }
+        '{}'
+    }
+}
+function global:python {
+    $global:LASTEXITCODE=0
+    if ($args -contains '--data-readback') { $global:d8Readbacks++; $global:LASTEXITCODE=1 }
+}
+try {
+    & (Join-Path $Repository 'scripts/deploy-development-network.ps1') -Action apply
+    throw 'Expected D/8 readback rejection'
+} catch {
+    if ($_.Exception.Message -notlike 'D/8 infrastructure readback failed*') { throw }
+}
+if ($global:d8Applies -ne 1 -or $global:d8Readbacks -ne 1) { throw 'D/8 stage was skipped or repeated' }
+if (@(Get-ChildItem -LiteralPath $env:TEMP -Directory -Filter 'ecommerce-d7-*').Count -ne 0) { throw 'Private plans left after failure' }
+""",encoding='utf-8')
+            environment={name:value for name,value in os.environ.items() if not name.startswith('TF_CLI_ARGS')}
+            environment['TEMP']=directory
+            result=subprocess.run(['pwsh','-NoProfile','-File',str(root/'run.ps1'),'-Repository',str(ROOT),'-Fixture',str(root/'plan.json')],env=environment,capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stdout+result.stderr)
