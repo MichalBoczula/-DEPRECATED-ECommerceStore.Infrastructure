@@ -30,14 +30,24 @@ def require(condition):
         raise ValueError('D/7 scope or network configuration rejected')
 
 
+def boolean_input(value):
+    # Saved plans retain primitive TF_VAR/CLI inputs before Terraform's conversion.
+    # Never use bool(value): the string "false" is truthy in Python.
+    if type(value) is bool:
+        return value
+    require(type(value) is str and value in ('true', 'false'))
+    return value == 'true'
+
+
 def validate(plan):
     require(not plan.get('errored') and plan.get('complete') is not False)
     variables = {name: item['value'] for name, item in plan['variables'].items()}
+    for name in ('enable_database_access', 'enable_database_candidate', 'enable_livedocs', 'enable_shared_environment'):
+        variables[name] = boolean_input(variables[name])
     enabled = variables['enable_database_access']
     databases = variables['enable_database_candidate']
     livedocs = variables['enable_livedocs']
-    require(type(enabled) is bool and type(databases) is bool and type(livedocs) is bool)
-    require(type(variables['enable_shared_environment']) is bool and (variables['enable_shared_environment'] or livedocs))
+    require(variables['enable_shared_environment'] or livedocs)
     require(variables['name_prefix'] == 'ecommerce')
     require(variables['location'] == 'northeurope')
     ips = egress.public_ipv4(variables['database_aca_ipv4']) if enabled else []

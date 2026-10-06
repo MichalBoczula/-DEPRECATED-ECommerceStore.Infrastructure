@@ -64,11 +64,13 @@ try {
     python (Join-Path $PSScriptRoot 'validate-network-plan.py') $jsonFile --verify-egress $env:ARM_SUBSCRIPTION_ID
     if ($LASTEXITCODE -ne 0) { throw 'D/7 plan or live egress verification failed; no apply attempted' }
     $plannedVariables = (($planText -join "`n") | ConvertFrom-Json).variables
-    if ($plannedVariables.enable_livedocs.value) { Assert-LiveDocsArchive }
+    # Saved-plan inputs may be "true"/"false" strings; [bool]'false' is also true.
+    $liveDocsEnabled = [string]$plannedVariables.enable_livedocs.value -eq 'true'
+    if ($liveDocsEnabled) { Assert-LiveDocsArchive }
     if ($Action -eq 'apply') {
         terraform "-chdir=$terraformRoot" apply -input=false -lock-timeout=5m $planFile
         if ($LASTEXITCODE -ne 0) { throw 'Apply failed; inspect partial state and keep the cleanup inputs' }
-        if ($plannedVariables.enable_livedocs.value) {
+        if ($liveDocsEnabled) {
             $liveText = terraform "-chdir=$terraformRoot" output -json livedocs
             if ($LASTEXITCODE -ne 0) { throw 'LiveDocs output read failed' }
             $live = ($liveText -join "`n") | ConvertFrom-Json

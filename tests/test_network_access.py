@@ -2,7 +2,9 @@
 import copy
 import importlib.util
 import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -56,6 +58,23 @@ def plan(access=True, databases=True, docs=True):
 
 
 class NetworkPolicyTests(unittest.TestCase):
+    def test_environment_boolean_strings_match_typed_inputs(self):
+        flags = ('enable_database_access', 'enable_database_candidate', 'enable_livedocs', 'enable_shared_environment')
+        for access, databases, docs in ((False, False, False), (False, False, True), (True, True, True)):
+            typed = plan(access, databases, docs)
+            supplied = copy.deepcopy(typed)
+            for name in flags:
+                supplied['variables'][name]['value'] = str(supplied['variables'][name]['value']).lower()
+            with self.subTest(access=access, docs=docs):
+                self.assertEqual(policy.validate(supplied), policy.validate(typed))
+
+    def test_ambiguous_boolean_inputs_are_rejected(self):
+        for name in ('enable_database_access', 'enable_database_candidate', 'enable_livedocs', 'enable_shared_environment'):
+            for value in (0, 1, None, '', 'FALSE', 'yes', [], {}):
+                p = plan(False, False, True)
+                p['variables'][name]['value'] = value
+                with self.subTest(name=name, value=value), self.assertRaises(ValueError): policy.validate(p)
+
     def test_terraform_renderer_without_variables_or_configuration(self):
         checker = policy.load('network_mock_checker', 'check-network-test-plans.py')
         for name, p in [('shared_environment_without_docs', plan(False, False, False)),
@@ -156,6 +175,75 @@ class NetworkPolicyTests(unittest.TestCase):
             result=subprocess.run([sys.executable,str(ROOT/'scripts/validate-network-plan.py'),str(path)],capture_output=True,text=True)
             self.assertNotEqual(result.returncode,0)
             self.assertNotIn('SENSITIVE-RAW-VALUE',result.stdout+result.stderr)
+
+
+class LocalInputTransportTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which('terraform'), 'Terraform required for real saved-plan input transport')
+    def test_real_terraform_environment_inputs_are_validated_after_conversion(self):
+        # Provider-free Terraform plans reproduce the local CLI boundary without Azure.
+        flags = ('enable_database_access', 'enable_database_candidate', 'enable_livedocs', 'enable_shared_environment')
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            root.joinpath('main.tf').write_text('\n'.join(
+                f'variable "{name}" {{\n type = bool\n default = false\n}}\noutput "{name}" {{ value = var.{name} }}' for name in flags), encoding='utf-8')
+            environment = {name: value for name, value in os.environ.items() if not name.startswith(('TF_VAR_', 'TF_CLI_ARGS'))}
+            environment.update(TF_WORKSPACE='default', TF_LOG='OFF')
+            subprocess.run(['terraform', 'init', '-backend=false', '-input=false'], cwd=root, env=environment, capture_output=True, text=True, check=True)
+            for access, databases, docs in ((False, False, False), (False, False, True), (True, True, True)):
+                p = plan(access, databases, docs)
+                for name in flags: environment['TF_VAR_' + name] = str(p['variables'][name]['value']).lower()
+                subprocess.run(['terraform', 'plan', '-input=false', '-out=plan.tfplan'], cwd=root, env=environment, capture_output=True, text=True, check=True)
+                result = subprocess.run(['terraform', 'show', '-json', 'plan.tfplan'], cwd=root, env=environment, capture_output=True, text=True, check=True)
+                saved = json.loads(result.stdout)
+                for name in flags:
+                    self.assertIsInstance(saved['variables'][name]['value'], str)
+                    self.assertIsInstance(saved['planned_values']['outputs'][name]['value'], bool)
+                p['variables'].update(saved['variables'])
+                with self.subTest(access=access, docs=docs):
+                    variables = policy.validate(p)[1]
+                    for name in flags:
+                        self.assertEqual(variables[name], saved['planned_values']['outputs'][name]['value'])
+
+    @unittest.skipUnless(shutil.which('pwsh'), 'PowerShell required for local lifecycle execution')
+    def test_string_false_does_not_trigger_livedocs_archive_or_smoke(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            p = plan(False, False, False)
+            for name in ('enable_database_access', 'enable_database_candidate', 'enable_livedocs', 'enable_shared_environment'):
+                p['variables'][name]['value'] = str(p['variables'][name]['value']).lower()
+            root.joinpath('plan.json').write_text(json.dumps(p), encoding='utf-8')
+            root.joinpath('run.ps1').write_text('''param([string]$Repository, [string]$Fixture)
+$ErrorActionPreference = 'Stop'
+$env:TFSTATE_RESOURCE_GROUP = 'rg-ecommerce-terraform-state'
+$env:TFSTATE_STORAGE_ACCOUNT = 'stecomtfc3229fd85c06d3'
+$env:TFSTATE_CONTAINER = 'development-state'
+$env:LIVEDOCS_ARCHIVE_STORAGE_ACCOUNT = 'existingarchive'
+$global:d7OfflineArchiveChecks = 0
+$global:d7OfflineApplies = 0
+function global:az {
+    $global:LASTEXITCODE = 0
+    if ($args[0] -eq 'account') { '11111111-1111-1111-1111-111111111111' }
+    elseif ($args[0] -eq 'storage') { $global:d7OfflineArchiveChecks++ }
+    else { throw 'Unexpected Azure request in offline test' }
+}
+function global:terraform {
+    $global:LASTEXITCODE = 0
+    if ($args[0] -eq 'version') { '{"terraform_version":"1.16.5"}' }
+    elseif ($args -contains 'show') { Get-Content -LiteralPath $Fixture -Raw }
+    elseif ($args -contains 'apply') { $global:d7OfflineApplies++ }
+    elseif ($args -contains 'output') {
+        if ($args -contains 'livedocs') { throw 'Disabled LiveDocs must not be read or smoked' }
+        '{"database_access_enabled":false}'
+    }
+}
+& (Join-Path $Repository 'scripts/deploy-development-network.ps1') -Action apply
+if ($global:d7OfflineArchiveChecks -ne 0 -or $global:d7OfflineApplies -ne 1) { throw 'Disabled LiveDocs flag was treated as truthy' }
+''', encoding='utf-8')
+            environment = {name: value for name, value in os.environ.items() if not name.startswith('TF_CLI_ARGS')}
+            environment['TEMP'] = directory
+            result = subprocess.run(['pwsh', '-NoProfile', '-File', str(root / 'run.ps1'), '-Repository', str(ROOT), '-Fixture', str(root / 'plan.json')],
+                                    env=environment, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 class EgressTests(unittest.TestCase):

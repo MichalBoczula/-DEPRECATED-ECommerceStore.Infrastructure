@@ -11,6 +11,8 @@ mkdir "$work_dir/plugin-cache"
 export TF_PLUGIN_CACHE_DIR="$work_dir/plugin-cache"
 
 terraform fmt -check -recursive
+# Run saved-plan input transport checks with the pinned CLI available.
+python3 -m unittest discover -s tests -p test_network_access.py -v
 for root in modules/deployment-context modules/consumption-environment modules/livedocs foundations/livedocs environments/development; do
   label=${root//\//-}
   terraform -chdir="$root" init -backend=false -input=false -lockfile=readonly
