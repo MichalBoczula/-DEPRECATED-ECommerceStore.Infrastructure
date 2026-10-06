@@ -83,6 +83,11 @@ configured. If verification fails, the checker prints repository filenames and
 line numbers without private plan values. Share those diagnostic lines for
 investigation; do not share the full plan JSON or bypass the checker.
 
+Saved-plan input variables preserve `TF_VAR_*` boolean settings as strings even
+though Terraform evaluates them as booleans. The checker accepts actual booleans
+and the exact strings `"true"` / `"false"`; the local script explicitly compares
+the validated LiveDocs flag instead of treating the string `"false"` as truthy.
+
 ## Stage two: discover egress and restrict databases
 
 In the same terminal (the lifecycle script sets `ARM_SUBSCRIPTION_ID`):
