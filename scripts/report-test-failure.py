@@ -14,7 +14,19 @@ AZURE_CODES = ('AuthorizationFailed', 'LinkedAuthorizationFailed', 'MissingSubsc
     'InvalidResourceLocation', 'LocationNotAvailableForResourceType', 'SubscriptionNotRegistered',
     'RequestDisallowedByPolicy', 'QuotaExceeded', 'SkuNotAvailable', 'InvalidServerAdministratorPassword',
     'ResourceValidationFailed', 'InvalidResourceProperties', 'ResourceGroupNotFound', 'ParentResourceNotFound',
-    'ResourceNotFound', 'InvalidResourceId', 'InvalidResourceName', 'InternalServerError', 'ProvisioningDisabled')
+    'ResourceNotFound', 'InvalidResourceId', 'InvalidResourceName', 'InternalServerError', 'ProvisioningDisabled',
+    'RequestDisallowedByAzure', 'RegionDoesNotAllowProvisioning', 'ServerQuotaExceeded', 'SubscriptionIsDisabled',
+    # Documented SQL server create/update failures. These are fixed categories,
+    # not arbitrary strings taken from Azure responses.
+    'NameAlreadyExistsSoftDeleted', 'NameAlreadyExists', 'ServerAlreadyExists',
+    'PECsNotExistingToDenyPublicNetworkAccess', 'InvalidLoginName', 'InvalidUsername',
+    'PasswordTooShort', 'PasswordTooLong', 'PasswordNotComplex', 'RegionDoesNotSupportVersion',
+    'InvalidLocation', 'InvalidServerName', 'InvalidIdentifier', 'TokenTooLong', 'ServerNotFound',
+    'InvalidMinimalTlsVersion', 'ServerNotInSubscriptionResourceGroup', 'SubscriptionDoesNotHaveServer',
+    'OperationIdNotFound', 'SubscriptionNotFound', 'CannotCancelOperation', 'OperationCancelled',
+    'OperationInterrupted', 'UpsertLogicalServerRequestAlreadyInProgress', 'ServerDisabled',
+    'ConflictingServerOperation', 'SubscriptionDisabled', 'SubscriptionTooManyCreateUpdateRequests',
+    'SubscriptionTooManyRequests', 'ConflictingSubscriptionOperation', 'OperationTimedOut', 'TooManyRequests')
 found = False
 for line in open(sys.argv[1],encoding='utf-8'):
     try: message=json.loads(line)
@@ -39,7 +51,9 @@ for line in open(sys.argv[1],encoding='utf-8'):
                 print(f'Check environment input: {field}',file=sys.stderr)
         if diagnostic.get('address') in RESOURCES:
             print(f"Resource: {diagnostic['address']}",file=sys.stderr)
-        detail=diagnostic.get('detail','')
+        # Providers may put Azure errors in either field. Inspect both privately;
+        # only fixed allowlisted tokens are emitted, never the raw summary/detail.
+        detail='\n'.join(str(diagnostic.get(field) or '') for field in ('summary', 'detail'))
         for code in AZURE_CODES:
             if re.search(r'\b'+code+r'\b',detail):
                 print(f'Azure error category: {code}',file=sys.stderr)
