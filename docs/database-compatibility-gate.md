@@ -1,6 +1,19 @@
 # D/6: provision the free database candidate
 
-Status: implementation prepared; **live Azure provisioning pending**. D/6 provisions a provisional backend and verifies its Free settings. D/7 configures access from Container Apps; D/9 verifies real driver compatibility before accepting the backend for the applications. D/17 covers business flows and D/19 covers destroy/recreate proof. The D/5 application release remains unchanged.
+Status: the operator reported local creation on 2026-10-06 of SQL server
+`sql-ecommerce-dev-d6-mike2026` and database `products-gate` in France Central,
+and `mongo-ecommerce-dev-d6-mike2026` in North Europe. Post-apply Free/network
+readback has not been supplied; teardown is requested and unverified. D/6
+remains provisional. D/7 configures access from Container Apps; D/9 verifies
+real driver compatibility before accepting the backend for the applications.
+D/17 covers business flows and D/19 covers destroy/recreate proof. The D/5
+application release remains unchanged.
+
+Use the [local PowerShell runbook](local-development.md) for provisioning,
+Free readback and teardown against the existing remote state. No GitHub
+environment input is required for that route. The workflow instructions below
+remain an optional OIDC execution route. The [D/7 preparation](development-network-access.md)
+accounts for SQL and ACA being in different regions.
 
 ## Candidate and cost boundary
 
@@ -31,7 +44,7 @@ PR CI runs a native MongoDB 8 replica set and SQL Server 2022 Developer positive
 
 The report checker requires all 16 .NET checks and all 15 Payments cases plus their cleanup and source/endpoint check (31 Payments results). It verifies the pinned driver versions and Payments source commit. Missing checks, a wrong source/driver, or a success flag paired with a failed check cannot produce a passing summary. Failed suites show every omitted check as `FAIL`; arbitrary check labels are rejected before publication.
 
-## Provisioning after merging this PR
+## Optional GitHub provisioning
 
 1. In your authenticated PowerShell terminal, select the existing development subscription. Register `Microsoft.Sql` and `Microsoft.DocumentDB` if needed (foundation/operator responsibility; the application provider deliberately does not auto-register):
 
@@ -78,7 +91,13 @@ The report checker requires all 16 .NET checks and all 15 Payments cases plus th
 
 ## Acceptance and remaining work
 
-D/6 is complete when a real apply succeeds and automatic Azure readback confirms the Free settings and disabled public access. Provisioning does not prove Mongo compatibility and `database_candidate.selected` remains false. Native CI is harness evidence only.
+D/6 is complete when a real apply succeeds and the existing Azure readback
+checker confirms Free settings and disabled public access, whether invoked
+locally or through the optional workflow. Record the safe local summary and
+commit/action counts, or workflow URLs. Provisioning does not prove Mongo
+compatibility and `database_candidate.selected` remains false. Native CI is
+harness evidence only. The operator-requested teardown does not replace D/19's
+full lifecycle proof.
 
 - **D/7:** configure SQL/Mongo access from the existing ACA environment, with no private endpoints or paid egress gateway. Changing the disabled public-access setting requires that reviewed network change.
 - **D/8:** reuse these state-owned resources when adding databases, Blob Storage and Key Vault; do not create duplicate candidates or declare them accepted prematurely.

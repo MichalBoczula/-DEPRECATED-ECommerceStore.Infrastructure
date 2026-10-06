@@ -4,6 +4,13 @@ Terraform infrastructure for the low-cost development deployment of the
 e-commerce store. The separate portfolio deployment belongs to
 [ECommerceStore.Infrastructure.Production](https://github.com/MichalBoczula/ECommerceStore.Infrastructure.Production).
 
+Provision and destroy Azure infrastructure from VS Code with Azure CLI and
+Terraform using the [local PowerShell runbook](docs/local-development.md).
+GitHub CI validates code; existing manual deployment workflows remain optional.
+Local runs use the same Azure Blob state and locking, with no workstation-IP
+database rule. The current runbook covers the D/6 database stage and full-state
+teardown; later stages extend its reviewed plan scope.
+
 ## Deployment status
 
 - **D/1:** manual destroy workflow with scope checks and teardown verification.
@@ -23,6 +30,14 @@ e-commerce store. The separate portfolio deployment belongs to
   See the [release inventory](docs/development-release.md). This does not deploy
   the business applications or complete Azure acceptance.
 
+- **D/6:** the operator reported local creation of the SQL server/database in
+  France Central and DocumentDB in North Europe on 2026-10-06. Free/network
+  management-API verification and requested teardown evidence remain pending.
+  This does not establish application compatibility.
+- **D/7:** [network access preparation](docs/development-network-access.md)
+  records the regional constraint and an ACA egress/firewall path to evaluate.
+  Implementation and live access verification remain pending.
+
 Full application
 apply/destroy/reapply and residual-cost verification belong to D/19. The
 persistent foundation lives in
@@ -34,7 +49,7 @@ persistent foundation lives in
 provides reusable names and tags without Azure resources or credentials. `modules/consumption-environment` owns the VNet/subnet/shared ACA environment;
 `modules/livedocs` owns the documentation host and its immutable image. The
 persistent archive lives in a separate `foundations/livedocs` root/state.
-Database, business services and frontend remain later deployment tasks. See [module usage and versioning](modules/README.md) and the
+Database candidates are implemented; business services and frontend remain later deployment tasks. See [module usage and versioning](modules/README.md) and the
 [ADR index](docs/adr/README.md).
 
 Terraform is pinned to `1.16.5`, AzureRM to `5.8.0` and AzAPI to `2.13.0`.
@@ -83,7 +98,12 @@ and remote state read. It rejects plans with managed-resource changes; the
 initial empty state is persisted without placeholder Azure resources.
 All application lifecycle workflows share concurrency group `terraform-development`.
 
-## Run the destroy button
+## Destroy locally or use the optional button
+
+The normal operator path is the [local saved-plan teardown](docs/local-development.md#destroy-the-current-disposable-environment).
+Keep existing flags/passwords until cleanup succeeds. Verify the empty state,
+retained group and backend/archive survival before reporting completion.
+The optional GitHub route is:
 
 1. Open **Actions → Destroy development environment → Run workflow**.
 2. Select `main` and run it. This deletes development data and every resource
@@ -148,7 +168,8 @@ values are committed to this repository.
 ## Destroy behavior
 
 - Use Terraform `1.16.5`, matching `.terraform-version` and the root constraint.
-- Initialize the remote Azure Blob backend using OIDC and Entra data-plane auth.
+- Initialize the same remote Azure Blob backend using Azure CLI locally, or
+  OIDC on the optional GitHub runner, with Entra data-plane auth.
 - Keep the default workspace, remote state locking and a five-minute lock wait.
 - Use the committed provider lock file with `-lockfile=readonly`; ordinary
   lifecycle runs must not upgrade dependencies.
@@ -157,7 +178,7 @@ values are committed to this repository.
   retained application group itself, then apply that
   exact plan. No targeted deletes or shell-based Azure resource deletion.
 - Keep raw Terraform logs, plan JSON and binary plan in a private temporary
-  directory on the ephemeral runner; remove them on exit. They are not uploaded
+  directory; remove them after local use or on runner exit. They are not uploaded
   or printed into this public repository's workflow logs, including on failure.
   Failures report the phase; inspect detailed diagnostics in a secure session.
 - Require an empty state, retained `rg-ecommerce-dev` with zero child application
@@ -216,7 +237,7 @@ terraform -chdir=environments/development providers lock -platform=linux_amd64 -
 ```
 
 D/5 records application images, ports, configuration and dependencies in
-`releases/development.json`. Next: D/6 provisions the Free database candidate. D/7 configures its access;
+`releases/development.json`. Next: verify local teardown, then implement D/7 access;
 D/9 verifies real driver compatibility and adds the
 five business apps to this shared environment. LiveDocs publishes an image
 only; Infrastructure owns its Azure deployment and image updates.
@@ -245,4 +266,11 @@ a photos container can coexist in the same persistent account.
 
 # D/6 database provisioning
 
-The optional Free SQL/DocumentDB candidate is disabled by default. Provision it through the manual candidate workflow; apply automatically checks Azure Free settings and disabled public access. Follow the [D/6 runbook](docs/database-compatibility-gate.md), then continue with D/7 networking. D/9 verifies driver compatibility from Azure, D/17 checks the business flow, and D/19 proves recreation. PR CI provides a native positive control; cloud compatibility remains pending deployment evidence. All candidate resources use the existing disposable development state and destroy button.
+The optional Free SQL/DocumentDB candidate is disabled by default. Use the
+[local runbook](docs/local-development.md) to plan/apply and run the existing
+Azure Free/network readback checker. The optional candidate workflow performs
+the same policy/readback checks. Follow the [D/6 contract](docs/database-compatibility-gate.md),
+then continue with D/7 networking. D/9 verifies driver compatibility from Azure,
+D/17 checks the business flow, and D/19 proves recreation. PR CI provides a
+native positive control; cloud compatibility remains pending deployment evidence.
+All candidate resources use the existing disposable development state.
