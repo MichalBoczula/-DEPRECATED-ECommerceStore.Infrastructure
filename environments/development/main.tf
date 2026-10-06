@@ -19,7 +19,7 @@ locals {
 }
 
 module "consumption" {
-  count               = var.enable_livedocs ? 1 : 0
+  count               = var.enable_shared_environment || var.enable_livedocs ? 1 : 0
   source              = "../../modules/consumption-environment"
   resource_group_name = local.retained_resource_group_name
   name_prefix         = module.context.name_prefix

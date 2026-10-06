@@ -5,3 +5,8 @@ name_prefix = "ecommerce"
 tags = {
   owner = "portfolio"
 }
+
+# Default-off D/7; follow docs/development-network-access.md for staged activation.
+enable_shared_environment = false
+enable_database_access    = false
+# database_aca_ipv4 comes from the ignored discovery file, never a workstation IP.

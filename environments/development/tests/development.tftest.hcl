@@ -16,6 +16,10 @@ mock_provider "azapi" {}
 run "development_contract" {
   command = plan
   assert {
+    condition     = length(module.consumption) == 0 && length(azurerm_mssql_firewall_rule.aca) == 0 && length(azapi_resource.mongo_aca_firewall) == 0
+    error_message = "D/7 network and database firewall access must remain disabled by default."
+  }
+  assert {
     condition     = length(azurerm_mssql_server.database_candidate) == 0 && length(azapi_resource.mongo_candidate) == 0
     error_message = "D/6 must not provision a database by default."
   }
@@ -27,6 +31,57 @@ run "development_contract" {
     condition     = output.deployment_context.tags.lifecycle == "disposable" && output.deployment_context.tags.costProfile == "minimal"
     error_message = "Development resource modules must receive disposable minimum-cost metadata."
   }
+}
+
+run "shared_environment_without_docs" {
+  command = plan
+  variables { enable_shared_environment = true }
+  assert {
+    condition     = length(module.consumption) == 1 && length(module.livedocs) == 0 && !output.network_access.database_access_enabled
+    error_message = "The shared environment must be independent of LiveDocs and leave database access disabled."
+  }
+}
+
+run "aca_database_access" {
+  command = plan
+  variables {
+    enable_shared_environment = true
+    enable_livedocs           = true
+    enable_database_candidate = true
+    enable_database_access    = true
+    candidate_suffix          = "reviewd7"
+    candidate_sql_location    = "francecentral"
+    candidate_sql_password    = "MockOnly-NotASecret-123!"
+    candidate_mongo_password  = "MockOnly-NotASecret-456!"
+    database_aca_ipv4         = ["20.40.60.80", "20.40.60.81"]
+  }
+  assert {
+    condition     = azurerm_mssql_server.database_candidate[0].public_network_access_enabled && azapi_resource.mongo_candidate[0].body.properties.publicNetworkAccess == "Enabled" && length(azurerm_mssql_firewall_rule.aca) == 2 && length(azapi_resource.mongo_aca_firewall) == 2
+    error_message = "Only explicitly enabled access may create one SQL/Mongo rule for each observed ACA IPv4."
+  }
+  assert {
+    condition     = alltrue([for rule in azurerm_mssql_firewall_rule.aca : rule.start_ip_address == rule.end_ip_address]) && azapi_resource.sql_candidate[0].body.properties.freeLimitExhaustionBehavior == "AutoPause" && !output.database_candidate.selected
+    error_message = "Keep single-IP rules, SQL AutoPause and provisional backend status."
+  }
+}
+
+run "access_without_addresses_rejected" {
+  command = plan
+  variables {
+    enable_shared_environment = true
+    enable_database_candidate = true
+    enable_database_access    = true
+    candidate_suffix          = "reviewd7"
+    candidate_sql_password    = "MockOnly-NotASecret-123!"
+    candidate_mongo_password  = "MockOnly-NotASecret-456!"
+  }
+  expect_failures = [var.enable_database_access]
+}
+
+run "broad_azure_rule_rejected" {
+  command = plan
+  variables { database_aca_ipv4 = ["0.0.0.0"] }
+  expect_failures = [var.database_aca_ipv4]
 }
 
 run "database_candidate_free_only" {

@@ -29,6 +29,9 @@ for root in modules/deployment-context modules/consumption-environment modules/l
     cat "$work_dir/$label.md" >>"$GITHUB_STEP_SUMMARY"
   fi
   (( status == 0 )) || { echo '::error::Terraform test failed.' >&2; exit "$status"; }
+  if [[ $root == environments/development ]]; then
+    python3 scripts/check-network-test-plans.py "$work_dir/$label.jsonl"
+  fi
 done
 
 python3 scripts/check-livedocs-release.py releases/livedocs.json

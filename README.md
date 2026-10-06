@@ -8,8 +8,8 @@ Provision and destroy Azure infrastructure from VS Code with Azure CLI and
 Terraform using the [local PowerShell runbook](docs/local-development.md).
 GitHub CI validates code; existing manual deployment workflows remain optional.
 Local runs use the same Azure Blob state and locking, with no workstation-IP
-database rule. The current runbook covers the D/6 database stage and full-state
-teardown; later stages extend its reviewed plan scope.
+database rule. Runbooks cover the D/6 database stage, [D/7 network access](docs/development-network-access.md)
+and complete-state teardown.
 
 ## Deployment status
 
@@ -32,11 +32,13 @@ teardown; later stages extend its reviewed plan scope.
 
 - **D/6:** the operator reported local creation of the SQL server/database in
   France Central and DocumentDB in North Europe on 2026-10-06. Free/network
-  management-API verification and requested teardown evidence remain pending.
+  management-API verification remains pending. The operator reported the
+  disposable deployment cleared before D/7.
   This does not establish application compatibility.
-- **D/7:** [network access preparation](docs/development-network-access.md)
-  records the regional constraint and an ACA egress/firewall path to evaluate.
-  Implementation and live access verification remain pending.
+- **D/7:** [local network access](docs/development-network-access.md) implements
+  independent shared-environment activation, ACA egress discovery and exact-IP
+  SQL/Mongo firewall rules. Storage/Key Vault subnet endpoints prepare D/8.
+  Live apply, source observation and allowed/denied connectivity remain pending.
 
 Full application
 apply/destroy/reapply and residual-cost verification belong to D/19. The
@@ -55,7 +57,7 @@ Database candidates are implemented; business services and frontend remain later
 Terraform is pinned to `1.16.5`, AzureRM to `5.8.0` and AzAPI to `2.13.0`.
 The committed root lock file includes Windows and Linux checksums. AzureRM
 automatic provider registration is disabled because registration is a foundation
-operator responsibility. AzAPI is reserved for Azure SQL Free properties that
+operator responsibility. AzAPI supplies Azure SQL Free properties and DocumentDB resources that
 this AzureRM version does not expose. Database eligibility and application
 compatibility still need D/6 provisioning and D/9 deployment verification; see the
 [provider capability audit](docs/provider-capabilities.md).
@@ -69,7 +71,8 @@ OIDC permission or backend access.
 
 After a merge, successful `Terraform CI` on `main` triggers **Publish module
 version**, which creates `modules-v<modules/VERSION>` at the tested commit.
-`modules-v0.1.0` and `modules-v0.2.0` are published after successful main CI. Existing tags are never moved. Module changes
+`modules-v0.1.0` and `modules-v0.2.0` are published. D/7 proposes `0.3.0`;
+its immutable tag is published only after successful merged main CI. Existing tags are never moved. Module changes
 require a version bump. Portfolio roots will consume a published tag rather
 than `main`.
 
@@ -237,7 +240,7 @@ terraform -chdir=environments/development providers lock -platform=linux_amd64 -
 ```
 
 D/5 records application images, ports, configuration and dependencies in
-`releases/development.json`. Next: verify local teardown, then implement D/7 access;
+`releases/development.json`. Next: execute the local D/7 access stages;
 D/9 verifies real driver compatibility and adds the
 five business apps to this shared environment. LiveDocs publishes an image
 only; Infrastructure owns its Azure deployment and image updates.

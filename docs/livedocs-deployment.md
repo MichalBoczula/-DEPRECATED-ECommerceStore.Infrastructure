@@ -35,6 +35,11 @@ archive root and Blob Data Contributor on the independent state store.
 Use Terraform 1.16.5, Azure CLI, Git Bash and optionally GitHub CLI. Ensure
 `terraform` and `az` resolve in the Bash terminal as well as PowerShell.
 
+D/7 can deploy this same pinned host locally using its
+[two-stage network runbook](development-network-access.md). That route preserves
+archive existence and HTTPS/source checks; use it for the expanded D/7 state.
+The four-resource D/4 workflow cannot approve database/firewall mutations.
+
 ## One-time persistent archive setup
 
 In PowerShell, authenticate and select the same development subscription:

@@ -14,6 +14,32 @@ variable "enable_livedocs" {
   default     = false
 }
 
+variable "enable_shared_environment" {
+  description = "D/7 shared ACA network without requiring the LiveDocs host; preserves existing module addresses."
+  type        = bool
+  default     = false
+}
+
+variable "enable_database_access" {
+  description = "Explicit D/7 public TLS access restricted to discovered ACA outbound IPv4 addresses."
+  type        = bool
+  default     = false
+  validation {
+    condition     = !var.enable_database_access || (var.enable_database_candidate && (var.enable_shared_environment || var.enable_livedocs) && length(var.database_aca_ipv4) > 0)
+    error_message = "Database access requires the candidate, shared ACA environment and a nonempty discovered outbound IPv4 set."
+  }
+}
+
+variable "database_aca_ipv4" {
+  description = "Observed ACA outbound addresses only; refresh after recreation or egress changes. No operator IP or CIDR ranges."
+  type        = set(string)
+  default     = []
+  validation {
+    condition     = length(var.database_aca_ipv4) <= 64 && alltrue([for ip in var.database_aca_ipv4 : try(cidrhost("${ip}/32", 0) == ip && !strcontains(ip, ":") && ip != "0.0.0.0", false)])
+    error_message = "Use at most 64 individual canonical IPv4 addresses; no CIDR, IPv6 or allow-Azure-services address."
+  }
+}
+
 variable "name_prefix" {
   description = "Short lowercase application prefix. This cannot change the retained group or backend."
   type        = string
