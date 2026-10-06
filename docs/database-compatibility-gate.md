@@ -59,6 +59,10 @@ The report checker requires all 16 .NET checks and all 15 Payments cases plus th
 
    Planning failures report Terraform's source location and an allowlisted category, candidate input/resource name or known Azure error code. Passwords, diagnostic detail, snippets and raw plans are never printed. A failed plan does not run apply; use its safe diagnostic to investigate before retrying. Destroy is for resources already recorded by a prior apply.
 
+   Development uses standard Terraform/provider schema validation with AzAPI's optional ARM preflight disabled. AzAPI 2.13.0 substitutes generated parent IDs when a parent server is unknown during planning; our SQL server is created in the same deployment. The latest live plan failed at this SQL resource, but its filtered log does not establish the exact Azure cause. Disabling this extra preflight step is a workaround to test, not proof of eligibility. The saved-plan Free/scope policy remains mandatory; Azure validates the real creation request during apply, and automatic ARM readback must pass before D/6 is complete.
+
+   References: [pinned provider preflight code](https://github.com/Azure/terraform-provider-azapi/blob/v2.13.0/internal/services/azapi_resource.go), [placeholder generation](https://github.com/Azure/terraform-provider-azapi/blob/v2.13.0/internal/services/preflight/preflight.go), [Microsoft preflight documentation](https://learn.microsoft.com/en-us/azure/developer/terraform/how-to-use-azapi-preflight-validation).
+
    If you previously applied the older operator-IP version, the new plan will reject removal of its firewall resources under the existing no-delete policy. Use **Destroy development** first and then apply the simplified version. Destroy also removes LiveDocs; the retained state foundation and independent archive survive. Keep the candidate flag and passwords configured while the candidate exists, including for teardown. An apply or readback failure leaves D/6 pending; inspect privately or use destroy for recorded partial resources.
 
 ## Acceptance and remaining work
