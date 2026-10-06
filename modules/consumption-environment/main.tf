@@ -47,5 +47,6 @@ resource "azurerm_container_app_environment" "host" {
   tags = var.tags
 }
 output "id" { value = azurerm_container_app_environment.host.id }
+output "subnet_id" { value = azurerm_subnet.host.id }
 output "name" { value = azurerm_container_app_environment.host.name }
 output "managed_resource_group_name" { value = azurerm_container_app_environment.host.infrastructure_resource_group_name }

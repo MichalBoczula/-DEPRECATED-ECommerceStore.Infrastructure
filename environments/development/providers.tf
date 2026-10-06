@@ -1,5 +1,11 @@
 provider "azurerm" {
-  features {}
+  features {
+    key_vault {
+      # This root owns disposable business secrets, never the persistent archive.
+      purge_soft_delete_on_destroy    = true
+      recover_soft_deleted_key_vaults = false
+    }
+  }
   # Subscription registrations belong to the persistent foundation operator.
   resource_provider_registrations = "none"
   storage_use_azuread             = true

@@ -9,6 +9,8 @@
 | [0005: LiveDocs archive CI identities](0005-livedocs-archive-ci-identities.md) | Accepted for LD/5 |
 | [0006: Local ACA database access](0006-local-aca-database-access.md) | D/7 implementation; live acceptance pending |
 
+| [0007: Disposable business Blob Storage and Key Vault](0007-disposable-business-data-services.md) | D/8 implementation; live acceptance pending |
+
 Future gateway, private networking, authentication and warehouse decisions
 belong to their iterations. The development MVP currently prioritizes minimal
 cost, with no paid gateway or private endpoints.

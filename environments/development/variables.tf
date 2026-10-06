@@ -30,6 +30,16 @@ variable "enable_database_access" {
   }
 }
 
+variable "enable_data_services" {
+  description = "D/8 disposable business Blob Storage and Key Vault. Independent of persistent LiveDocs archive."
+  type        = bool
+  default     = false
+  validation {
+    condition     = !var.enable_data_services || (var.enable_shared_environment || var.enable_livedocs)
+    error_message = "Data services require the shared ACA subnet and its Storage/Key Vault service endpoints."
+  }
+}
+
 variable "database_aca_ipv4" {
   description = "Observed ACA outbound addresses only; refresh after recreation or egress changes. No operator IP or CIDR ranges."
   type        = set(string)

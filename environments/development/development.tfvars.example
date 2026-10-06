@@ -10,3 +10,7 @@ tags = {
 enable_shared_environment = false
 enable_database_access    = false
 # database_aca_ipv4 comes from the ignored discovery file, never a workstation IP.
+
+# D/8 business storage/vault; requires the shared ACA subnet.
+# Use docs/development-data-services.md with the same local lifecycle script.
+enable_data_services = false

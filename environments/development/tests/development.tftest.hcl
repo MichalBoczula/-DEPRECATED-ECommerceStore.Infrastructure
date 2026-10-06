@@ -3,6 +3,7 @@ mock_provider "azurerm" {
   mock_data "azurerm_client_config" {
     defaults = {
       subscription_id = "11111111-1111-1111-1111-111111111111"
+      tenant_id       = "22222222-2222-2222-2222-222222222222"
     }
   }
   mock_resource "azurerm_container_app_environment" {
@@ -10,11 +11,18 @@ mock_provider "azurerm" {
       id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-ecommerce-dev/providers/Microsoft.App/managedEnvironments/cae-ecommerce-dev"
     }
   }
+  mock_resource "azurerm_subnet" {
+    defaults = { id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-ecommerce-dev/providers/Microsoft.Network/virtualNetworks/vnet-ecommerce-dev/subnets/aca" }
+  }
 }
 mock_provider "azapi" {}
 
 run "development_contract" {
   command = plan
+  assert {
+    condition     = length(module.data_services) == 0
+    error_message = "D/8 file services must remain disabled by default."
+  }
   assert {
     condition     = length(module.consumption) == 0 && length(azurerm_mssql_firewall_rule.aca) == 0 && length(azapi_resource.mongo_aca_firewall) == 0
     error_message = "D/7 network and database firewall access must remain disabled by default."
@@ -31,6 +39,42 @@ run "development_contract" {
     condition     = output.deployment_context.tags.lifecycle == "disposable" && output.deployment_context.tags.costProfile == "minimal"
     error_message = "Development resource modules must receive disposable minimum-cost metadata."
   }
+}
+
+run "data_services_without_docs" {
+  command = plan
+  variables {
+    enable_shared_environment = true
+    enable_data_services      = true
+  }
+  assert {
+    condition     = length(module.data_services) == 1 && length(module.livedocs) == 0 && length(azapi_resource.mongo_candidate) == 0 && keys(output.data_services.containers) == ["invoices", "photos"]
+    error_message = "File services must be independently staged without extra apps/databases."
+  }
+}
+
+run "data_services_with_databases" {
+  command = plan
+  variables {
+    enable_shared_environment = true
+    enable_livedocs           = true
+    enable_data_services      = true
+    enable_database_candidate = true
+    candidate_suffix          = "reviewd7"
+    candidate_sql_location    = "francecentral"
+    candidate_sql_password    = "MockOnly-NotASecret-123!"
+    candidate_mongo_password  = "MockOnly-NotASecret-456!"
+  }
+  assert {
+    condition     = output.data_services.sql.database == "products-gate" && output.data_services.mongo_databases.users == "ecommerce-store-users-db" && output.data_services.mongo_databases.invoice == "ecommerce-store-invoice-db" && output.data_services.mongo_databases.payments == "ecommerce_store_payments" && length(azapi_resource.mongo_candidate) == 1 && !output.network_access.database_access_enabled
+    error_message = "Reuse D/6 databases, reserve separate Mongo names and keep access explicitly staged."
+  }
+}
+
+run "data_services_without_subnet_rejected" {
+  command = plan
+  variables { enable_data_services = true }
+  expect_failures = [var.enable_data_services]
 }
 
 run "shared_environment_without_docs" {

@@ -1,9 +1,9 @@
 # D/7: local Container Apps database access
 
-Implementation is ready for review. On 2026-10-06 the operator reported the
-previous disposable deployment cleared. Live D/7 apply, egress observations
-and allowed/denied connection evidence remain pending. D/6 Free readback was
-not supplied for the earlier deployment; backend acceptance remains provisional.
+D/7 and the plan-checker fixes in PRs #12–#14 are merged. On 2026-10-06
+the operator reported stage-one deployment working and its teardown complete.
+Egress observation, Free database readback and allowed/denied data-plane access
+remain pending; stage-one success does not establish application compatibility.
 
 Use VS Code PowerShell, Terraform **1.16.5**, Azure CLI and Python 3. GitHub CI
 checks code; it does not provision this stage. Keep the existing remote state:
@@ -21,8 +21,8 @@ rule is created. Free SQL/AutoPause and Mongo Free settings remain enforced.
 
 `enable_shared_environment` enables the existing environment independently of
 LiveDocs without moving its Terraform addresses. The subnet adds Storage and
-Key Vault service endpoints. D/8 still needs matching service-side ACLs and
-runtime identity roles; these endpoints alone grant no data access.
+Key Vault service endpoints. [D/8](development-data-services.md) supplies service-side ACLs; D/9 grants
+runtime identity roles. These endpoints alone grant no data access.
 
 Container Apps GET reports `properties.outboundIpAddresses`; Managed Environments
 GET does not. Stage one reuses the pinned LiveDocs app to obtain this readback.
@@ -177,3 +177,18 @@ Primary references checked 2026-10-06:
 - [Container Apps GET and outboundIpAddresses](https://learn.microsoft.com/en-us/rest/api/resource-manager/containerapps/container-apps/get?view=rest-resource-manager-containerapps-2026-01-01)
 - [Container Apps networking](https://learn.microsoft.com/en-us/azure/container-apps/networking)
 - [DocumentDB firewall rules and propagation](https://learn.microsoft.com/en-us/azure/documentdb/how-to-configure-firewall)
+
+## ACA delete polling recovery
+
+The operator observed `polling support for the Content-Type "" was not
+implemented` after both ACA app and environment deletes. Azure removed the
+resources even though the pinned AzureRM SDK reported a polling failure. The
+SDK's LRO parser lacked handling for a successful empty HTTP 204 response;
+[upstream fix #1367](https://github.com/hashicorp/go-azure-sdk/pull/1367) was
+merged on 2026-10-05. The pinned provider is unchanged in this task.
+
+Verify that the resource is actually absent, then rerun the complete-state
+destroy with the same inputs. Terraform refresh reconciles already-deleted
+resources and continues remaining deletes such as the VNet. Do not remove
+resources from state or force-unlock an active operation. This failure is not
+a reason to create replacement infrastructure or increase polling timeouts.
