@@ -79,10 +79,6 @@ jobs:
       - name: Check Windows provider checksums and mock plans
         shell: pwsh
         run: |
-          $tokens = $null
-          $parseErrors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'scripts/probe-database-candidate.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
-          if ($parseErrors.Count -ne 0) { throw 'D6 PowerShell syntax validation failed.' }
           terraform "-chdir=environments/development" init -backend=false -input=false -lockfile=readonly
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           terraform "-chdir=environments/development" validate

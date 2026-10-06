@@ -20,8 +20,9 @@ as specified by ADR 0001.
 Pin Terraform `1.16.5`, AzureRM `5.8.0` and AzAPI `2.13.0`; commit Windows and
 Linux provider checksums and enforce readonly initialization. Disable automatic
 provider registration. Audit provider schema support in CI. Reserve AzAPI for
-SQL Free properties; no database is provisioned until compatibility and offer
-eligibility are established.
+SQL Free properties and the reviewed DocumentDB Free creation contract. D/6
+provisions provisional resources and checks offer settings; D/9 must establish
+application compatibility before accepting them for business rollout.
 
 Run formatting, validation, mock plan tests and lifecycle contract tests on PRs
 without Azure credentials. Summaries expose resource types, actions, counts and

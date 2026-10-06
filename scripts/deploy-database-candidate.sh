@@ -34,5 +34,8 @@ python3 "$repo_root/scripts/validate-database-candidate.py" "$work_dir/plan.json
 if [[ $DEPLOY_ACTION == apply ]]; then
   phase=application
   terraform apply -input=false -lock=true -lock-timeout=5m "$work_dir/candidate.tfplan" >"$work_dir/apply.log" 2>&1
-  echo 'D/6 candidate provisioned in disposable development state. Compatibility and free-offer readback still require the operator probes; no backend is selected.'
+  phase=readback
+  terraform output -json database_candidate >"$work_dir/names.json" 2>"$work_dir/output.log"
+  python3 "$repo_root/scripts/validate-database-candidate.py" "$work_dir/names.json" --readback "$ARM_SUBSCRIPTION_ID"
+  echo 'D/6 candidate provisioned and Free settings verified. Next: D/7 access from Container Apps, then D/9 application compatibility. Lifecycle proof is D/19.'
 fi

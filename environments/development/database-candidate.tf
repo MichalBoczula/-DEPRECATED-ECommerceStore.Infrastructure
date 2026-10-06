@@ -8,15 +8,8 @@ resource "azurerm_mssql_server" "database_candidate" {
   administrator_login           = "d6operator"
   administrator_login_password  = var.candidate_sql_password
   minimum_tls_version           = "1.2"
-  public_network_access_enabled = true
+  public_network_access_enabled = false
   tags                          = module.context.tags
-}
-resource "azurerm_mssql_firewall_rule" "database_candidate" {
-  count            = var.enable_database_candidate ? 1 : 0
-  name             = "D6Operator"
-  server_id        = azurerm_mssql_server.database_candidate[0].id
-  start_ip_address = var.candidate_operator_ipv4
-  end_ip_address   = var.candidate_operator_ipv4
 }
 # AzureRM 5.8.0 cannot express the Free offer: one owner, explicit AzAPI body.
 resource "azapi_resource" "sql_candidate" {
@@ -59,19 +52,12 @@ resource "azapi_resource" "mongo_candidate" {
       compute             = { tier = "Free" }
       createMode          = "Default"
       highAvailability    = { targetMode = "Disabled" }
-      publicNetworkAccess = "Enabled"
+      publicNetworkAccess = "Disabled"
       serverVersion       = "8.0"
       sharding            = { shardCount = 1 }
       storage             = { sizeGb = 32, type = "PremiumSSD" }
     }
   }
-}
-resource "azurerm_mongo_cluster_firewall_rule" "database_candidate" {
-  count            = var.enable_database_candidate ? 1 : 0
-  name             = "D6Operator"
-  mongo_cluster_id = azapi_resource.mongo_candidate[0].id
-  start_ip_address = var.candidate_operator_ipv4
-  end_ip_address   = var.candidate_operator_ipv4
 }
 output "database_candidate" {
   description = "Non-secret candidate names; connection strings/passwords are never exported."
