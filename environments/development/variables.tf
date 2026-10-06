@@ -36,7 +36,16 @@ variable "enable_database_candidate" {
   default     = false
   validation {
     condition     = !var.enable_database_candidate || var.location == "northeurope"
-    error_message = "The reviewed D/6 Free candidate is limited to northeurope; recheck offers before changing region."
+    error_message = "The D/6 Mongo Free candidate remains in northeurope; use candidate_sql_location to move SQL independently."
+  }
+}
+variable "candidate_sql_location" {
+  description = "SQL-only region; check subscription availability before the first Free database creation. Keep unchanged while SQL resources exist."
+  type        = string
+  default     = "northeurope"
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9]+$", var.candidate_sql_location))
+    error_message = "Use an Azure region identifier for SQL, for example westeurope."
   }
 }
 variable "candidate_suffix" {

@@ -18,6 +18,15 @@ database. These capabilities do not prove the subscription can claim a free
 offer or that the applications work with it. No price guarantee is made by
 the pins or mock tests.
 
+D/6 live correction on 2026-10-06: the `2026-06-01` Mongo create API rejected
+an administrator body without `userName`; supply both username and password.
+SQL server creation returned `ProvisioningDisabled` in North Europe for the
+operator's subscription. `candidate_sql_location` overrides SQL only and is
+carried through plan validation, management readback and teardown; changing
+it does not relocate Mongo or the shared application environment. Availability
+must be checked for the active subscription; a successful mock plan proves
+neither regional capacity nor Free-offer eligibility.
+
 ## Primary sources
 
 - [AzureRM 5.8.0 Mongo cluster documentation](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.8.0/website/docs/r/mongo_cluster.html.markdown)
@@ -26,3 +35,6 @@ the pins or mock tests.
 - [Azure SQL database API properties](https://learn.microsoft.com/en-us/azure/templates/microsoft.sql/2023-08-01/servers/databases)
 - [Terraform mock providers](https://developer.hashicorp.com/terraform/language/tests/mocking)
 - [Terraform machine-readable test plans](https://developer.hashicorp.com/terraform/internals/machine-readable-ui)
+
+- [Mongo Bicep creation contract](https://learn.microsoft.com/en-us/azure/documentdb/quickstart-bicep)
+- [SQL subscription edition availability](https://learn.microsoft.com/en-us/cli/azure/sql/db#az-sql-db-list-editions)

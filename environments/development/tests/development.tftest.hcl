@@ -36,6 +36,15 @@ run "database_candidate_free_only" {
     candidate_suffix          = "reviewd6"
     candidate_sql_password    = "MockOnly-NotASecret-123!"
     candidate_mongo_password  = "MockOnly-NotASecret-456!"
+    candidate_sql_location    = "westeurope"
+  }
+  assert {
+    condition     = azurerm_mssql_server.database_candidate[0].location == "westeurope" && azapi_resource.sql_candidate[0].location == "westeurope" && azapi_resource.mongo_candidate[0].location == "northeurope" && output.deployment_context.location == "northeurope" && output.database_candidate.sql_location == "westeurope"
+    error_message = "The SQL-only region override must leave Mongo and the shared development context in North Europe."
+  }
+  assert {
+    condition     = azapi_resource.mongo_candidate[0].body.properties.administrator.userName == "d6operator"
+    error_message = "Mongo ARM creation requires an explicit administrator username."
   }
   assert {
     condition     = azapi_resource.mongo_candidate[0].body.properties.compute.tier == "Free" && azapi_resource.mongo_candidate[0].body.properties.storage.sizeGb == 32 && azapi_resource.mongo_candidate[0].body.properties.sharding.shardCount == 1 && azapi_resource.mongo_candidate[0].body.properties.highAvailability.targetMode == "Disabled"
