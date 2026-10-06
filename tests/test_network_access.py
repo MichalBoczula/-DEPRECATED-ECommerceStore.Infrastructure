@@ -56,6 +56,30 @@ def plan(access=True, databases=True, docs=True):
 
 
 class NetworkPolicyTests(unittest.TestCase):
+    def test_terraform_renderer_without_variables_or_configuration(self):
+        checker = policy.load('network_mock_checker', 'check-network-test-plans.py')
+        for name, p in [('shared_environment_without_docs', plan(False, False, False)),
+                        ('livedocs_uses_shared_environment', plan(False, False, True)),
+                        ('aca_database_access', plan())]:
+            if name == 'aca_database_access':
+                for item in p['resource_changes'][:2]:
+                    item['change']['after']['location'] = 'francecentral'
+                for original in list(p['resource_changes'][-2:]):
+                    item = copy.deepcopy(original)
+                    item['address'] = item['address'].replace('20.40.60.80', '20.40.60.81')
+                    after = item['change']['after']
+                    after['name'] = 'aca-20-40-60-81'
+                    if item['type'] == 'azurerm_mssql_firewall_rule':
+                        after.update(start_ip_address='20.40.60.81', end_ip_address='20.40.60.81')
+                    else:
+                        after['body']['properties'].update(startIpAddress='20.40.60.81', endIpAddress='20.40.60.81')
+                    p['resource_changes'].append(item)
+            rendered = {'resource_changes': p['resource_changes']}
+            with self.subTest(name=name):
+                self.assertGreater(policy.validate({**rendered, **checker.envelope(name)})[0]['create'], 0)
+                # The real saved-plan checker still requires the complete envelope.
+                with self.assertRaises(KeyError): policy.validate(rendered)
+
     def test_staged_environment_and_exact_ip_access(self):
         self.assertEqual(policy.validate(plan(False,False,False))[0],dict(create=3,update=0,delete=0))
         self.assertEqual(policy.validate(plan(False,False,True))[0],dict(create=4,update=0,delete=0))

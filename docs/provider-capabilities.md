@@ -9,6 +9,7 @@ provider schemas, while the links below establish the Azure/API intent.
 | Terraform `1.16.5` | Module tests and mock providers | Same exact version in roots, workflows and `.terraform-version` |
 | AzureRM `5.8.0`: `azurerm_mongo_cluster` | `compute_tier` includes `Free` in provider documentation; attribute exists in schema | Candidate only. Check offer/region eligibility in D/6; verify application Mongo features in D/9 |
 | AzureRM `5.8.0`: `azurerm_mssql_database` | Schema lacks `use_free_limit` and `free_limit_exhaustion_behavior` | Serverless/autopause alone does not configure the SQL Free offer |
+| AzureRM `5.8.0`: `azurerm_subnet` | `service_endpoint` block with required `service`; the old `service_endpoints` list is absent | D/7 uses Storage/Key Vault blocks; CI audits the pinned schema |
 | AzAPI `2.13.0`: `azapi_resource` | Accepts API resource `type` and `body` | D/6 uses SQL free-limit properties and the DocumentDB Free creation contract |
 | Azure SQL API `2023-08-01` | Database properties include `useFreeLimit` and `freeLimitExhaustionBehavior` | Require `useFreeLimit=true` and `freeLimitExhaustionBehavior="AutoPause"`; do not silently continue into paid overage |
 
@@ -30,6 +31,7 @@ neither regional capacity nor Free-offer eligibility.
 ## Primary sources
 
 - [AzureRM 5.8.0 Mongo cluster documentation](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.8.0/website/docs/r/mongo_cluster.html.markdown)
+- [AzureRM 5.8.0 subnet implementation/schema](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.8.0/internal/services/network/subnet_resource.go)
 - [AzureRM 5.8.0 SQL database implementation/schema](https://github.com/hashicorp/terraform-provider-azurerm/blob/v5.8.0/internal/services/mssql/mssql_database_resource.go)
 - [AzAPI 2.13.0 release](https://github.com/Azure/terraform-provider-azapi/releases/tag/v2.13.0)
 - [Azure SQL database API properties](https://learn.microsoft.com/en-us/azure/templates/microsoft.sql/2023-08-01/servers/databases)
