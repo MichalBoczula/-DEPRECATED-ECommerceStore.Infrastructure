@@ -12,7 +12,9 @@ def source_hash():
                  and not set(path.relative_to(base).parts) & {'bin', 'obj', '__pycache__'})
     digest = hashlib.sha256()
     for path in sorted(paths):
-        digest.update(path.relative_to(ROOT).as_posix().encode() + b'\0' + path.read_bytes() + b'\0')
+        # Git for Windows may check out CRLF; all retained build inputs are text.
+        # Hash normalized text so the same source verifies on Windows and Linux.
+        digest.update(path.relative_to(ROOT).as_posix().encode() + b'\0' + path.read_text(encoding='utf-8').encode() + b'\0')
     return digest.hexdigest()
 
 

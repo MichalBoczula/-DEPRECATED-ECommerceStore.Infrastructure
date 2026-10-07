@@ -4,8 +4,11 @@ import copy
 import datetime
 import importlib.util
 import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -137,6 +140,11 @@ class BusinessPlanTests(unittest.TestCase):
         with self.assertRaises(ValueError): policy.validate(p, changes, SUB)
         app['change']['after_unknown']['secret'] = [{'identity': True}]
         policy.validate(p, changes, SUB)
+        app['change']['after']['identity'][0]['identity_ids'] = [None]
+        app['change']['after_unknown']['identity'] = [{'identity_ids': [True]}]
+        policy.validate(p, changes, SUB)
+        app['change']['after_unknown']['identity'] = [{'identity_ids': [False]}]
+        with self.assertRaises(ValueError): policy.validate(p, changes, SUB)
 
     def test_yarp_hyphenated_keys_no_localhost_and_secret_env_contract(self):
         p, changes = plan()
@@ -148,6 +156,18 @@ class BusinessPlanTests(unittest.TestCase):
         with self.assertRaises(ValueError): policy.validate(p, changes, SUB)
 
 class ProofTests(unittest.TestCase):
+    def test_source_hash_is_identical_for_windows_line_endings(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            root.joinpath('scripts').mkdir()
+            root.joinpath('verification/database-gate').mkdir(parents=True)
+            file = root / 'scripts/report-database-gate.py'
+            file.write_bytes(b'line one\nline two\n')
+            with patch.object(verify.source, 'ROOT', root):
+                unix = verify.source.source_hash()
+                file.write_bytes(b'line one\r\nline two\r\n')
+                self.assertEqual(unix, verify.source.source_hash())
+
     def test_complete_database_and_runtime_evidence(self):
         value, expected = proof()
         verify.validate_proof(value, expected)
@@ -229,3 +249,48 @@ class SecretAndEgressTests(unittest.TestCase):
             self.assertEqual(egress.discover(SUB, 'cae-ecommerce-dev', ['ca-ecommerce-dev-livedocs'], ['job-ecommerce-dev-database-gate']), ['20.40.60.80', '20.40.60.81'])
         with patch.object(egress, 'arm_get', return_value={'properties': dict(environmentId=environment, workloadProfileName='Consumption', provisioningState='Succeeded', outboundIpAddresses=[])}):
             with self.assertRaises(ValueError): egress.discover(SUB, 'cae-ecommerce-dev', [], ['job-ecommerce-dev-database-gate'])
+
+class LocalLifecycleTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which('pwsh'), 'PowerShell required for local lifecycle execution')
+    def test_missing_or_failed_database_proof_never_applies_and_cleans_plan(self):
+        for failed in (False, True):
+            with self.subTest(failed=failed), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                p, _ = plan()
+                root.joinpath('plan.json').write_text(json.dumps(p), encoding='utf-8')
+                root.joinpath('run.ps1').write_text(r'''param([string]$Repository,[string]$Fixture,[string]$Failed)
+$ErrorActionPreference='Stop'
+$env:TFSTATE_RESOURCE_GROUP='rg-ecommerce-terraform-state'
+$env:TFSTATE_STORAGE_ACCOUNT='stecomtfc3229fd85c06d3'
+$env:TFSTATE_CONTAINER='development-state'
+$env:LIVEDOCS_ARCHIVE_STORAGE_ACCOUNT='archiveaccount123'
+Remove-Item Env:D9_DATABASE_REPORT -ErrorAction SilentlyContinue
+if ($Failed -eq 'true') { $env:D9_DATABASE_REPORT='safe-proof.json' }
+$global:d9Applies=0
+$global:d9Proofs=0
+function global:az { $global:LASTEXITCODE=0; '11111111-1111-1111-1111-111111111111' }
+function global:terraform {
+    $global:LASTEXITCODE=0
+    if ($args[0] -eq 'version') { '{"terraform_version":"1.16.5"}' }
+    elseif ($args -contains 'show') { Get-Content -LiteralPath $Fixture -Raw }
+    elseif ($args -contains 'apply') { $global:d9Applies++ }
+}
+function global:python {
+    $global:LASTEXITCODE=0
+    if ($args -contains '--check-report') { $global:d9Proofs++; $global:LASTEXITCODE=1 }
+}
+try {
+    & (Join-Path $Repository 'scripts/deploy-development-network.ps1') -Action apply
+    throw 'Missing or failed proof must block apply'
+} catch {
+    $expected = if ($Failed -eq 'true') { 'D/9 Azure database proof mismatch*' } else { 'Set D9_DATABASE_REPORT*' }
+    if ($_.Exception.Message -notlike $expected) { throw }
+}
+if ($global:d9Applies -ne 0) { throw 'An app was applied without proof' }
+if ($global:d9Proofs -ne [int]($Failed -eq 'true')) { throw 'Proof checker was skipped or repeated' }
+if (@(Get-ChildItem -LiteralPath $env:TEMP -Directory -Filter 'ecommerce-d7-*').Count -ne 0) { throw 'Private plans left after proof rejection' }
+''', encoding='utf-8')
+                environment = {name: value for name, value in os.environ.items() if not name.startswith('TF_CLI_ARGS')}
+                environment['TEMP'] = directory
+                result = subprocess.run(['pwsh', '-NoProfile', '-File', str(root / 'run.ps1'), '-Repository', str(ROOT), '-Fixture', str(root / 'plan.json'), '-Failed', str(failed).lower()], env=environment, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

@@ -206,7 +206,9 @@ def validate(plan, changes, subscription):
         require(len(identity) == 1 and identity[0]['type'] == 'UserAssigned')
         expected_identity = names['root'] + 'Microsoft.ManagedIdentity/userAssignedIdentities/' + app_identity
         ids = identity[0].get('identity_ids')
-        require(ids == [expected_identity] or (ids is None and nested_unknown(resource, 'identity', 0, 'identity_ids')))
+        require(ids == [expected_identity]
+                or (ids is None and nested_unknown(resource, 'identity', 0, 'identity_ids'))
+                or (ids == [None] and nested_unknown(resource, 'identity', 0, 'identity_ids', 0)))
         refs(base, 'identity', 'azurerm_user_assigned_identity.business') if 'identity' in config[base] and isinstance(config[base]['identity'], dict) else None
         if resource['type'] == 'azurerm_container_app':
             expected_secrets = {'connection': SECRETS[key]} if key != 'bff' else {}
