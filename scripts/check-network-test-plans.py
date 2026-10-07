@@ -18,10 +18,12 @@ def envelope(name):
                      enable_database_candidate=False, enable_database_access=False,
                      database_aca_ipv4=[], name_prefix='ecommerce', location='northeurope',
                      candidate_suffix='', candidate_sql_location='northeurope', enable_data_services=False)
-    if name == 'aca_database_access':
+    if name in ('aca_database_access', 'aca_database_access_large_egress'):
         variables.update(enable_livedocs=True, enable_database_candidate=True,
                          enable_database_access=True, candidate_suffix='reviewd7',
                          candidate_sql_location='francecentral', database_aca_ipv4=['20.40.60.80', '20.40.60.81'])
+        if name == 'aca_database_access_large_egress':
+            variables['database_aca_ipv4'] = [f'20.40.60.{i}' for i in range(1, 162)]
     elif name == 'livedocs_uses_shared_environment':
         variables.update(enable_shared_environment=False, enable_livedocs=True)
     elif name in ('data_services_without_docs', 'data_services_with_databases', 'business_stage', 'business_apps'):
@@ -91,7 +93,7 @@ def envelope(name):
 
 if __name__ == '__main__':
     try:
-        expected = {'shared_environment_without_docs', 'aca_database_access', 'livedocs_uses_shared_environment', 'data_services_without_docs', 'data_services_with_databases', 'business_stage', 'business_apps'}
+        expected = {'shared_environment_without_docs', 'aca_database_access', 'aca_database_access_large_egress', 'livedocs_uses_shared_environment', 'data_services_without_docs', 'data_services_with_databases', 'business_stage', 'business_apps'}
         seen = set()
         for line in Path(sys.argv[1]).read_text().splitlines():
             message = json.loads(line)

@@ -28,6 +28,10 @@ Container Apps GET reports `properties.outboundIpAddresses`; Managed Environment
 GET does not. Stage one reuses the pinned LiveDocs app to obtain this readback.
 Its inbound IP is never used. D/9 must discover the union of the business apps'
 reported egress and confirm each app's observed source before accepting access.
+Discovery and Terraform accept at most 256 individual addresses, matching the
+SQL server firewall-rule ceiling. This is a project bound, not a documented
+DocumentDB quota; Azure apply and complete firewall readback remain required.
+Larger sets fail without truncation or replacement by ranges.
 Reported addresses can change; this design requires rediscovery after recreation
 or connectivity failures. Custom VNet managed networking and cross-region traffic
 can incur costs. No NAT, private endpoint, gateway or extra probe app is added.
@@ -192,3 +196,5 @@ destroy with the same inputs. Terraform refresh reconciles already-deleted
 resources and continues remaining deletes such as the VNet. Do not remove
 resources from state or force-unlock an active operation. This failure is not
 a reason to create replacement infrastructure or increase polling timeouts.
+
+The address ceiling follows the [Azure SQL firewall limits](https://learn.microsoft.com/en-us/azure/azure-sql/database/firewall-configure?view=azuresql).
