@@ -83,7 +83,7 @@ class DataServicesTests(unittest.TestCase):
         storage['change']['after']['network_rules'][0].update(ip_rules=None,virtual_network_subnet_ids=None)
         storage['change']['after_unknown']={'network_rules':[dict(ip_rules=True,virtual_network_subnet_ids=True)]}
         vault=next(x for x in p['resource_changes'] if x['type']=='azurerm_key_vault')
-        vault['change']['after']['network_acls'][0]['virtual_network_subnet_ids']=None
+        vault['change']['after']['network_acls'][0].update(ip_rules=None,virtual_network_subnet_ids=None)
         vault['change']['after_unknown']={'access_policy':True,'network_acls':[dict(virtual_network_subnet_ids=True)]}
         self.assertEqual(network.policy.validate(p,SUB)[0]['create'],11)
         with tempfile.TemporaryDirectory() as directory:
@@ -91,6 +91,28 @@ class DataServicesTests(unittest.TestCase):
             result=subprocess.run([sys.executable,str(ROOT/'scripts/validate-network-plan.py'),str(path),'--verify-egress',SUB],capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stderr)
             self.assertIn('11 creates',result.stdout)
+
+    def test_key_vault_known_null_rules_need_empty_literal_and_first_create(self):
+        for marker in (None,False):
+            p=plan(True)
+            vault=next(x for x in p['resource_changes'] if x['type']=='azurerm_key_vault')
+            vault['change']['after']['network_acls'][0]['ip_rules']=None
+            if marker is not None:
+                vault['change']['after_unknown']={'network_acls':[dict(ip_rules=marker)]}
+            with self.subTest(marker=marker):
+                self.assertEqual(network.policy.validate(p,SUB)[0]['create'],11)
+            for mutation in ('update','no-op','omitted','broad','dynamic','malformed-marker'):
+                rejected=copy.deepcopy(p)
+                resource=next(x for x in rejected['resource_changes'] if x['type']=='azurerm_key_vault')
+                config=rejected['configuration']['root_module']['module_calls']['data_services']['module']['resources']
+                expression=next(x for x in config if x['address']=='azurerm_key_vault.business')['expressions']['network_acls'][0]
+                if mutation in ('update','no-op'): resource['change']['actions']=[mutation]
+                if mutation=='omitted': expression.pop('ip_rules')
+                if mutation=='broad': expression['ip_rules']={'constant_value':['1.2.3.4']}
+                if mutation=='dynamic': expression['ip_rules']={'references':['var.rules']}
+                if mutation=='malformed-marker': resource['change']['after_unknown']={'network_acls':[dict(ip_rules='false')]}
+                with self.subTest(mutation=mutation,marker=marker),self.assertRaises((ValueError,KeyError)):
+                    network.policy.validate(rejected,SUB)
 
     def test_unknown_ip_rules_need_empty_literal_create_and_unknown_marker(self):
         for mutation in ('omitted','broad','dynamic','marker','unmarked','update','no-op','known-broad'):

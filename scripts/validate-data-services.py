@@ -71,14 +71,16 @@ def validate(plan, changes, subscription):
             require(len(after['network_acls']) == 1 and acl['bypass'] == 'None')
         require(acl['default_action'] == 'Deny')
         if acl.get('ip_rules') is None:
-            # AzureRM's Optional+Computed set can remain unknown on first create,
-            # even with explicit ip_rules = []. Accept only that proven intent;
-            # an omitted/dynamic/rule-bearing expression must still fail closed.
+            # Storage's Optional+Computed set may be unknown; Key Vault's
+            # Optional set may instead be known null. Both need source proof
+            # of ip_rules = [] on first create; null alone grants no exception.
             block = 'network_rules' if kind == 'azurerm_storage_account' else 'network_acls'
             expressions = config[address.removeprefix('module.data_services[0].')]['expressions'][block]
             require(len(expressions) == 1 and expressions[0]['ip_rules'] == {'constant_value': []})
             unknown = change.get('after_unknown', {}).get(block, [])
-            require(change['actions'] == ['create'] and len(unknown) == 1 and unknown[0].get('ip_rules') is True)
+            require(change['actions'] == ['create'] and len(unknown) <= 1)
+            marker = unknown[0].get('ip_rules', False) if unknown else False
+            require(marker is True or (kind == 'azurerm_key_vault' and marker is False))
         else:
             require(acl['ip_rules'] == [])
         # The one subnet ID may still be unknown on the first create. Its source
