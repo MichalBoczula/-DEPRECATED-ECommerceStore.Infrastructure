@@ -75,8 +75,8 @@ variable "database_aca_ipv4" {
   type        = set(string)
   default     = []
   validation {
-    condition     = length(var.database_aca_ipv4) <= 64 && alltrue([for ip in var.database_aca_ipv4 : try(cidrhost("${ip}/32", 0) == ip && !strcontains(ip, ":") && ip != "0.0.0.0", false)])
-    error_message = "Use at most 64 individual canonical IPv4 addresses; no CIDR, IPv6 or allow-Azure-services address."
+    condition     = length(var.database_aca_ipv4) <= 256 && alltrue([for ip in var.database_aca_ipv4 : try(cidrhost("${ip}/32", 0) == ip && !strcontains(ip, ":") && ip != "0.0.0.0", false)])
+    error_message = "Use at most 256 individual canonical IPv4 addresses; no CIDR, IPv6 or allow-Azure-services address."
   }
 }
 

@@ -261,6 +261,30 @@ class EgressTests(unittest.TestCase):
             with self.subTest(field=field),patch.object(policy.egress,'arm_get',return_value=r),self.assertRaises(ValueError):
                 policy.egress.discover(SUBSCRIPTION,'cae-ecommerce-dev',['ca-ecommerce-dev-livedocs'])
 
+    def test_complete_161_address_app_and_job_union_is_retained(self):
+        addresses = [f'20.40.60.{i}' for i in range(1, 162)]
+        response = self.response()
+        response['properties']['outboundIpAddresses'] = list(reversed(addresses))
+        with patch.object(policy.egress, 'arm_get', return_value=response) as get:
+            result = policy.egress.discover(SUBSCRIPTION, 'cae-ecommerce-dev',
+                ['ca-ecommerce-dev-livedocs'],
+                ['job-ecommerce-dev-database-gate', 'job-ecommerce-dev-invoice-probe'])
+        self.assertEqual(result, sorted(addresses))
+        self.assertEqual(get.call_count, 3)
+
+    def test_address_ceiling_applies_to_each_source_and_the_complete_union(self):
+        addresses = [f'20.40.{i // 256}.{i % 256}' for i in range(257)]
+        self.assertEqual(policy.egress.public_ipv4(addresses[:256]), sorted(addresses[:256]))
+        with self.assertRaises(ValueError):
+            policy.egress.public_ipv4(addresses)
+        app = self.response()
+        app['properties']['outboundIpAddresses'] = addresses[:200]
+        job = self.response()
+        job['properties']['outboundIpAddresses'] = addresses[200:]
+        with patch.object(policy.egress, 'arm_get', side_effect=[app, job]), self.assertRaises(ValueError):
+            policy.egress.discover(SUBSCRIPTION, 'cae-ecommerce-dev',
+                ['ca-ecommerce-dev-livedocs'], ['job-ecommerce-dev-database-gate'])
+
     def test_private_loopback_multicast_cidr_and_allow_azure_rejected(self):
         for ip in ('0.0.0.0','127.0.0.1','10.1.2.3','169.254.1.2','192.168.0.1','224.0.0.1','255.255.255.255','20.40.60.80/32','::1'):
             with self.subTest(ip=ip), self.assertRaises(ValueError): policy.egress.public_ipv4([ip])

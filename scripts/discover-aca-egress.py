@@ -8,9 +8,12 @@ import shutil
 import subprocess
 
 
+# Keep the complete union within the SQL server firewall-rule ceiling.
+MAX_ACA_IPV4 = 256
+
 def public_ipv4(values):
-    if not isinstance(values, list) or not 0 < len(values) <= 64:
-        raise ValueError('A nonempty bounded IPv4 list is required')
+    if not isinstance(values, list) or not 0 < len(values) <= MAX_ACA_IPV4:
+        raise ValueError(f'A nonempty list of at most {MAX_ACA_IPV4} IPv4 addresses is required')
     addresses = set()
     for value in values:
         address = ipaddress.IPv4Address(value)

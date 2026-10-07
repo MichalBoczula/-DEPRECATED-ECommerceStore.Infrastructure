@@ -173,6 +173,36 @@ run "aca_database_access" {
   }
 }
 
+run "aca_database_access_large_egress" {
+  command = plan
+  variables {
+    enable_shared_environment = true
+    enable_livedocs           = true
+    enable_database_candidate = true
+    enable_database_access    = true
+    candidate_suffix          = "reviewd7"
+    candidate_sql_location    = "francecentral"
+    candidate_sql_password    = "MockOnly-NotASecret-123!"
+    candidate_mongo_password  = "MockOnly-NotASecret-456!"
+    database_aca_ipv4         = [for i in range(1, 162) : "20.40.60.${i}"]
+  }
+  assert {
+    condition     = length(azurerm_mssql_firewall_rule.aca) == 161 && length(azapi_resource.mongo_aca_firewall) == 161 && alltrue([for ip, rule in azurerm_mssql_firewall_rule.aca : rule.start_ip_address == ip && rule.end_ip_address == ip]) && alltrue([for ip, rule in azapi_resource.mongo_aca_firewall : rule.body.properties.startIpAddress == ip && rule.body.properties.endIpAddress == ip])
+    error_message = "Retain every discovered address as an exact single-IP rule on both candidates."
+  }
+}
+
+run "egress_at_address_ceiling_accepted" {
+  command = plan
+  variables { database_aca_ipv4 = [for i in range(256) : "20.40.60.${i}"] }
+}
+
+run "egress_over_address_ceiling_rejected" {
+  command = plan
+  variables { database_aca_ipv4 = [for i in range(257) : "20.40.${floor(i / 256)}.${i % 256}"] }
+  expect_failures = [var.database_aca_ipv4]
+}
+
 run "access_without_addresses_rejected" {
   command = plan
   variables {

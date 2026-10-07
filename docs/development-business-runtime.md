@@ -106,7 +106,7 @@ $env:TF_VAR_enable_database_access = 'true'
 .\scripts\deploy-development-network.ps1 -Action apply
 ```
 
-Discovery reads every existing source and only writes the ignored local input after complete success. Do not replace an empty discovery result with your public IP or ACA's ingress IP. SQL/Mongo public endpoints are enabled with exactly one single-IP rule per reported outbound address, with no “allow all Azure services” rule. Discovery and ARM readback prove configuration; the next step proves the pinned drivers work against these endpoints.
+Discovery reads every existing source and only writes the ignored local input after complete success. Do not replace an empty discovery result with your public IP or ACA's ingress IP. The full union is bounded at 256 addresses; larger sets fail without truncation. SQL/Mongo public endpoints are enabled with exactly one single-IP rule per reported outbound address, with no “allow all Azure services” rule. Discovery and ARM readback prove configuration; the next step proves the pinned drivers work against these endpoints.
 
 ## 6. Run the retained Azure database suites
 
