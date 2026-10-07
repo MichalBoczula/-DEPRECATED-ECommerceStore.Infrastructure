@@ -182,7 +182,7 @@ def verify_arm(metadata, subscription):
                 require(not secrets[secret].get('value'))
         else:
             require(not cfg.get('secrets') and not job.get('identity', {}).get('userAssignedIdentities'))
-            require(container['command'] == ['pwsh', '-NoProfile', '-Command', (ROOT / 'verification/database-gate/invoice-probe.ps1').read_text()])
+            require(container['command'] == network.business.invoice_command())
         jobs[key] = job
     return jobs
 

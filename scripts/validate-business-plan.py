@@ -50,6 +50,12 @@ def plain_env(key, urls):
     return {**dotnet, **values[key]}
 
 
+def invoice_command():
+    # Match Terraform file() exactly, including CRLF in Windows checkouts.
+    script = (ROOT / 'verification/database-gate/invoice-probe.ps1').read_bytes().decode('utf-8')
+    return ['pwsh', '-NoProfile', '-Command', script]
+
+
 def validate(plan, changes, subscription):
     require(re.fullmatch(r'[0-9a-fA-F-]{36}', subscription or ''))
     vars = {key: value['value'] for key, value in plan['variables'].items()}
@@ -66,7 +72,9 @@ def validate(plan, changes, subscription):
     if domain:
         require(re.fullmatch(r'[a-z0-9-]+\.northeurope\.azurecontainerapps\.io', domain))
     urls = {key: 'https://ca-ecommerce-dev-' + key + ('' if key == 'bff' else '.internal') + '.' + domain if domain else None for key in APPS}
-    config = {r['address']: r['expressions'] for r in plan['configuration']['root_module']['resources']}
+    # Terraform omits expressions for data sources with no arguments, such as
+    # azurerm_client_config. Required runtime references remain checked by refs.
+    config = {r['address']: r.get('expressions', {}) for r in plan['configuration']['root_module']['resources']}
     resources = {r['address']: r for r in changes}
     expected = {'azurerm_user_assigned_identity.business["' + key + '"]' for key in APPS | {'gate'}}
     expected |= {'azurerm_role_assignment.business_secret["' + key + '"]' for key in set(SECRETS) | {'gate_sql', 'gate_mongo'}}
@@ -199,7 +207,7 @@ def validate(plan, changes, subscription):
             else:
                 require(after['name'] == 'job-ecommerce-dev-invoice-probe' and after['replica_timeout_in_seconds'] == 300)
                 require(container['image'] == release['applications']['invoice']['image'] and (container['cpu'], container['memory']) == ALLOCATIONS['invoice'])
-                require(container['command'] == ['pwsh', '-NoProfile', '-Command', (ROOT / 'verification/database-gate/invoice-probe.ps1').read_text()])
+                require(container['command'] == invoice_command())
                 require(not container.get('args') and not secret and not identity and set(env) == {'D9_RUN_ID'})
                 require(env['D9_RUN_ID']['value'] == 'manual-unbound')
                 continue

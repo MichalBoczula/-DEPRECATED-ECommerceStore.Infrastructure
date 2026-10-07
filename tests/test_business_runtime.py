@@ -70,7 +70,7 @@ def plan(apps=True):
         if key == 'gate':
             container['env'] += [dict(name='D6_SQL_CONNECTION_STRING', secret_name='sql'), dict(name='D6_MONGO_CONNECTION_STRING', secret_name='mongo'), dict(name='D6_SQL_HOST', value='sql-ecommerce-dev-d6-reviewd7.database.windows.net'), dict(name='D6_MONGO_HOST', value='mongo-ecommerce-dev-d6-reviewd7.mongocluster.cosmos.azure.com'), dict(name='D9_MODE', value='database'), dict(name='D9_APPS', value=json.dumps(URLS))]
         else:
-            container['command'] = ['pwsh', '-NoProfile', '-Command', (ROOT / 'verification/database-gate/invoice-probe.ps1').read_text()]
+            container['command'] = policy.invoice_command()
         after = dict(common, name='job-ecommerce-dev-' + ('database-gate' if key == 'gate' else 'invoice-probe'), location='northeurope', replica_retry_limit=0, replica_timeout_in_seconds=1800 if key == 'gate' else 300, manual_trigger_config=[dict(parallelism=1, replica_completion_count=1)], template=[dict(container=[container])])
         if key == 'gate': after.update(identity=[dict(type='UserAssigned', identity_ids=[identity('gate')])], secret=[reference('sql', policy.SECRETS['products'], 'gate'), reference('mongo', policy.SECRETS['users'], 'gate')])
         changes.append(change('azurerm_container_app_job.' + ('database_gate' if key == 'gate' else 'invoice_probe'), 0, after))
@@ -97,6 +97,49 @@ def proof():
     return value, expected
 
 class BusinessPlanTests(unittest.TestCase):
+    def test_invoice_probe_command_preserves_terraform_file_line_endings(self):
+        raw = b"$ErrorActionPreference = 'Stop'\r\nWrite-Host 'fixture'\r\n"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            file = root / 'verification/database-gate/invoice-probe.ps1'
+            file.parent.mkdir(parents=True)
+            file.write_bytes(raw)
+            with patch.object(policy, 'ROOT', root):
+                command = policy.invoice_command()
+            self.assertEqual(command, ['pwsh', '-NoProfile', '-Command', raw.decode('utf-8')])
+        for apps in (False, True):
+            p, changes = plan(apps)
+            probe = next(r for r in changes if r['address'] == 'azurerm_container_app_job.invoice_probe[0]')
+            container = probe['change']['after']['template'][0]['container'][0]
+            container['command'] = command.copy()
+            with self.subTest(apps=apps), patch.object(policy, 'invoice_command', return_value=command):
+                self.assertEqual(policy.validate(p, changes, SUB), URLS)
+                container['command'][-1] += "Write-Host 'unexpected'\r\n"
+                with self.assertRaises(ValueError):
+                    policy.validate(p, changes, SUB)
+
+    def test_argument_free_data_sources_can_omit_configuration_expressions(self):
+        for apps in (False, True):
+            p, changes = plan(apps)
+            for name in ('database_candidate', 'data_services'):
+                p['configuration']['root_module']['resources'].append({
+                    'address': 'data.azurerm_client_config.' + name,
+                    'mode': 'data', 'type': 'azurerm_client_config', 'name': name,
+                    'provider_config_key': 'azurerm', 'schema_version': 0,
+                })
+            with self.subTest(apps=apps):
+                self.assertEqual(policy.validate(p, changes, SUB), URLS)
+
+    def test_missing_required_runtime_reference_expressions_still_rejected(self):
+        for base in ('azurerm_role_assignment.business_secret',
+                     'azurerm_role_assignment.business_blob',
+                     'azurerm_container_app_job.database_gate'):
+            p, changes = plan(False)
+            config = next(r for r in p['configuration']['root_module']['resources'] if r['address'] == base)
+            del config['expressions']
+            with self.subTest(base=base), self.assertRaises((KeyError, ValueError)):
+                policy.validate(p, changes, SUB)
+
     def test_staged_and_app_plans(self):
         for apps, count in ((False, 16), (True, 21)):
             p, changes = plan(apps)
