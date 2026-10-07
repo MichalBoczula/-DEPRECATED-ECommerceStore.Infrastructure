@@ -30,6 +30,8 @@ output "network_access" {
     environment_id          = module.consumption[0].id
     environment_name        = module.consumption[0].name
     discovery_app           = var.enable_livedocs ? "ca-${module.context.name_prefix}-livedocs" : null
+    discovery_apps          = concat(var.enable_livedocs ? ["ca-${module.context.name_prefix}-livedocs"] : [], var.enable_business_apps ? sort(values(local.business_names)) : [])
+    discovery_jobs          = var.enable_business_runtime ? [azurerm_container_app_job.database_gate[0].name, azurerm_container_app_job.invoice_probe[0].name] : []
     database_access_enabled = var.enable_database_access
     aca_ipv4                = sort(tolist(local.database_aca_rules))
     candidate = var.enable_database_candidate ? {

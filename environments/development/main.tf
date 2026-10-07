@@ -35,4 +35,4 @@ module "livedocs" {
   image               = local.livedocs_release.image
   tags                = module.context.tags
 }
-# Five business services join this environment in D/9 with Azure driver compatibility verification.
+# D/9 business-runtime.tf adds staged identities/jobs and the five pinned business apps.

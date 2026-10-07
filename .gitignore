@@ -16,5 +16,6 @@ backend.hcl
 *.tfbackend
 !*.tfbackend.example
 artifacts/database-gate/
+artifacts/d9/
 verification/database-gate/dotnet/bin/
 verification/database-gate/dotnet/obj/

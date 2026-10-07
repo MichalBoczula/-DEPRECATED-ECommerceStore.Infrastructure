@@ -34,10 +34,11 @@ def arm_get(resource_id, version):
                     'https://management.azure.com' + resource_id + '?api-version=' + version])
 
 
-def discover(subscription, environment, apps):
+def discover(subscription, environment, apps, jobs=None):
+    jobs = jobs or []
     if not re.fullmatch(r'[0-9a-fA-F-]{36}', subscription):
         raise ValueError('Invalid subscription')
-    if not re.fullmatch(r'cae-[a-z0-9-]+', environment) or not apps:
+    if not re.fullmatch(r'cae-[a-z0-9-]+', environment) or not (apps or jobs):
         raise ValueError('Environment and at least one existing app are required')
     root = f'/subscriptions/{subscription}/resourceGroups/rg-ecommerce-dev/providers/Microsoft.App/'
     expected_environment = root + 'managedEnvironments/' + environment
@@ -53,6 +54,16 @@ def discover(subscription, environment, apps):
                 or properties.get('provisioningState') != 'Succeeded'):
             raise ValueError('App is not ready in the expected Consumption environment')
         addresses.update(public_ipv4(properties.get('outboundIpAddresses')))
+    for job in jobs:
+        if not re.fullmatch(r'job-[a-z0-9-]+', job):
+            raise ValueError('Invalid job name')
+        response = arm_get(root + 'jobs/' + job, '2025-07-01')
+        properties = response['properties']
+        owner = properties.get('environmentId') or properties.get('managedEnvironmentId')
+        if (not isinstance(owner, str) or owner.lower() != expected_environment.lower() or properties.get('workloadProfileName') != 'Consumption'
+                or properties.get('provisioningState') != 'Succeeded'):
+            raise ValueError('Job is not ready in the expected Consumption environment')
+        addresses.update(public_ipv4(properties.get('outboundIpAddresses')))
     return public_ipv4(sorted(addresses))
 
 
@@ -60,11 +71,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--subscription', required=True)
     parser.add_argument('--environment', default='cae-ecommerce-dev')
-    parser.add_argument('--app', action='append', required=True)
+    parser.add_argument('--app', action='append', default=[])
+    parser.add_argument('--job', action='append', default=[])
     parser.add_argument('--output', required=True, type=Path)
     args = parser.parse_args()
     try:
-        addresses = discover(args.subscription, args.environment, args.app)
+        addresses = discover(args.subscription, args.environment, args.app, args.job)
         if not args.output.name.endswith('.auto.tfvars.json'):
             raise ValueError('Use an ignored auto.tfvars.json output')
         # Write only after complete successful readback; a failure preserves prior inputs.

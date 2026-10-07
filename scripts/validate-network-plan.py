@@ -19,6 +19,7 @@ def load(name, filename):
 candidate = load('d7_candidate', 'validate-database-candidate.py')
 egress = load('d7_egress', 'discover-aca-egress.py')
 data_services = load('d8_data_services', 'validate-data-services.py')
+business = load('d9_business', 'validate-business-plan.py')
 NETWORK = {address: kind for address, kind in candidate.LIVEDOCS.items() if 'module.consumption' in address}
 LIVE = 'module.livedocs[0].azurerm_container_app.host'
 RULES = {'azurerm_mssql_firewall_rule.aca': 'azurerm_mssql_firewall_rule',
@@ -44,6 +45,8 @@ def validate(plan, subscription=None):
     require(not plan.get('errored') and plan.get('complete') is not False)
     variables = {name: item['value'] for name, item in plan['variables'].items()}
     variables['enable_data_services'] = boolean_input(variables.get('enable_data_services', False))
+    for name in ('enable_business_runtime', 'enable_business_apps'):
+        variables[name] = boolean_input(variables.get(name, False))
     for name in ('enable_database_access', 'enable_database_candidate', 'enable_livedocs', 'enable_shared_environment'):
         variables[name] = boolean_input(variables[name])
     enabled = variables['enable_database_access']
@@ -62,6 +65,7 @@ def validate(plan, subscription=None):
     counts = {'create': 0, 'update': 0, 'delete': 0}
     candidate_changes = []
     data_changes = []
+    business_changes = []
     for resource in plan.get('resource_changes', []):
         if resource.get('mode') != 'managed':
             continue
@@ -94,6 +98,9 @@ def validate(plan, subscription=None):
             else:
                 require(ip in ips)
                 seen_rules[rule_base].add(ip)
+        elif business.belongs(address):
+            require(variables['enable_business_runtime'])
+            business_changes.append(resource)
         elif address in data_services.ADDRESSES:
             require(variables['enable_data_services'])
             data_changes.append(resource)
@@ -139,6 +146,16 @@ def validate(plan, subscription=None):
     require(all(values == set(ips) for values in seen_rules.values()))
     if variables['enable_data_services']:
         data_services.validate(plan, data_changes, subscription)
+    if variables['enable_business_runtime']:
+        require(variables['enable_shared_environment'] and livedocs and databases and variables['enable_data_services'])
+        require(not variables['enable_business_apps'] or enabled)
+        business.validate(plan, business_changes, subscription)
+        variables['discovery_apps'] = ['ca-ecommerce-dev-livedocs'] + [
+            r['change']['after']['name'] for r in business_changes
+            if r['type'] == 'azurerm_container_app' and r['change']['actions'] != ['create']]
+        variables['discovery_jobs'] = [
+            r['change']['after']['name'] for r in business_changes
+            if r['type'] == 'azurerm_container_app_job' and r['change']['actions'] != ['create']]
     if databases:
         candidate.validate({**plan, 'resource_changes': candidate_changes}, public_access_enabled=enabled)
         resources = {item['address']: item['change']['after'] for item in candidate_changes}
@@ -157,14 +174,21 @@ def verify_egress(variables, subscription):
         # D/7 reuses LiveDocs; D/9 extends discovery to all deployed business apps.
         require(variables['enable_livedocs'])
         prefix = variables['name_prefix'] + '-dev'
-        observed = egress.discover(subscription, 'cae-' + prefix, ['ca-' + prefix + '-livedocs'])
+        if variables.get('enable_business_runtime', False):
+            observed = egress.discover(subscription, 'cae-' + prefix, variables['discovery_apps'], variables['discovery_jobs'])
+        else:
+            observed = egress.discover(subscription, 'cae-' + prefix, ['ca-' + prefix + '-livedocs'])
         require(observed == egress.public_ipv4(variables['database_aca_ipv4']))
 
 
 def readback(names, subscription):
     require(names['database_access_enabled'] is True)
     ips = egress.public_ipv4(names['aca_ipv4'])
-    require(egress.discover(subscription, names['environment_name'], [names['discovery_app']]) == ips)
+    if names.get('discovery_jobs'):
+        observed = egress.discover(subscription, names['environment_name'], names['discovery_apps'], names['discovery_jobs'])
+    else:
+        observed = egress.discover(subscription, names['environment_name'], [names['discovery_app']])
+    require(observed == ips)
     candidate.readback(names['candidate'], subscription, public_access_enabled=True)
     base = f'/subscriptions/{subscription}/resourceGroups/rg-ecommerce-dev/providers/'
     sql = egress.arm_get(base + 'Microsoft.Sql/servers/' + names['candidate']['sql_server'] + '/firewallRules', '2023-08-01')
@@ -202,6 +226,6 @@ if __name__ == '__main__':
         # Report source locations only: exception messages and plan values can contain secrets.
         for frame in traceback.extract_tb(error.__traceback__):
             filename = Path(frame.filename).name
-            if filename in ('validate-network-plan.py', 'validate-database-candidate.py', 'validate-livedocs-plan.py', 'discover-aca-egress.py', 'validate-data-services.py'):
+            if filename in ('validate-network-plan.py', 'validate-database-candidate.py', 'validate-livedocs-plan.py', 'discover-aca-egress.py', 'validate-data-services.py', 'validate-business-plan.py'):
                 print(f'{filename}:{frame.lineno}: D/7 verification diagnostic', file=sys.stderr)
         raise SystemExit('D/7 verification failed; inspect private plan/Azure diagnostics. No apply was performed by this checker.')

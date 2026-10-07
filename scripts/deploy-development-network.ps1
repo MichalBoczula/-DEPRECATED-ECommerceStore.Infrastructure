@@ -63,11 +63,27 @@ try {
     [IO.File]::WriteAllText($jsonFile, ($planText -join "`n"), [Text.UTF8Encoding]::new($false))
     python (Join-Path $PSScriptRoot 'validate-network-plan.py') $jsonFile --verify-egress $env:ARM_SUBSCRIPTION_ID
     if ($LASTEXITCODE -ne 0) { throw 'D/7 plan or live egress verification failed; no apply attempted' }
-    $plannedVariables = (($planText -join "`n") | ConvertFrom-Json).variables
+    $plannedDocument = ($planText -join "`n") | ConvertFrom-Json
+    $plannedVariables = $plannedDocument.variables
     # Saved-plan inputs may be "true"/"false" strings; [bool]'false' is also true.
     $liveDocsEnabled = [string]$plannedVariables.enable_livedocs.value -eq 'true'
     if ($liveDocsEnabled) { Assert-LiveDocsArchive }
+    if ([string]$plannedVariables.enable_business_runtime.value -eq 'true') {
+        python (Join-Path $PSScriptRoot 'verify-business-runtime.py') --verify-image $plannedVariables.database_gate_image.value
+        if ($LASTEXITCODE -ne 0) { throw 'D/9 verification image mismatch; no apply attempted' }
+    }
     if ($Action -eq 'apply') {
+        # Egress-only reconciliation must remain possible after new apps add addresses.
+        # Require fresh proof for every app create/update, not an ACL-only no-op app plan.
+        $businessMutations = @($plannedDocument.resource_changes | Where-Object {
+            $_.address -like 'azurerm_container_app.business*' -and
+            ($_.change.actions -contains 'create' -or $_.change.actions -contains 'update')
+        })
+        if ($businessMutations.Count -gt 0) {
+            if (-not $env:D9_DATABASE_REPORT) { throw 'Set D9_DATABASE_REPORT to the complete successful Azure database proof before deploying business apps' }
+            python (Join-Path $PSScriptRoot 'verify-business-runtime.py') --check-report $env:D9_DATABASE_REPORT --plan-file $jsonFile --subscription $env:ARM_SUBSCRIPTION_ID
+            if ($LASTEXITCODE -ne 0) { throw 'D/9 Azure database proof mismatch; no apply attempted' }
+        }
         terraform "-chdir=$terraformRoot" apply -input=false -lock-timeout=5m $planFile
         if ($LASTEXITCODE -ne 0) { throw 'Apply failed; inspect partial state and keep the cleanup inputs' }
         if ([string]$plannedVariables.enable_data_services.value -eq 'true') {
@@ -98,6 +114,9 @@ try {
         if (($networkText | ConvertFrom-Json).database_access_enabled) {
             python (Join-Path $PSScriptRoot 'validate-network-plan.py') $jsonFile --readback $env:ARM_SUBSCRIPTION_ID
             if ($LASTEXITCODE -ne 0) { throw 'ARM readback failed; D/7 live acceptance remains pending' }
+        }
+        if ([string]$plannedVariables.enable_business_runtime.value -eq 'true') {
+            Write-Host 'D/9 infrastructure applied. Refresh egress across LiveDocs, jobs and deployed business apps, then run the bounded verification; see docs/development-business-runtime.md.'
         }
     }
 }

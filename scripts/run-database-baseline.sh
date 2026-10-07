@@ -31,4 +31,22 @@ timeout 600 uv run --frozen --project artifacts/database-gate/payments python \
   artifacts/database-gate/payments-baseline.json || status=1
 python3 scripts/report-database-gate.py native-baseline \
   artifacts/database-gate/dotnet-baseline.json artifacts/database-gate/payments-baseline.json || status=1
+(( status == 0 )) || exit "$status"
+# Test the actual portable image that D/9 publishes, against the same native control.
+docker build --platform linux/amd64 -f verification/database-gate/Dockerfile \
+  --build-arg "SOURCE_COMMIT=$(git rev-parse HEAD)" \
+  --build-arg "GATE_SOURCE_HASH=$(python3 scripts/gate-source-hash.py)" \
+  -t ecommerce-d9-gate:tested .
+timeout 1600 docker run --rm --network host -e D6_SQL_CONNECTION_STRING -e D6_MONGO_CONNECTION_STRING \
+  -e D9_BACKEND=native-baseline -e D9_MODE=database \
+  -e D9_RUN_ID=11111111111111111111111111111111 ecommerce-d9-gate:tested \
+  >artifacts/database-gate/image-baseline.log
+python3 scripts/verify-business-runtime.py --native-image-report artifacts/database-gate/image-baseline.log
+# Exercise the exact Invoice image with its deployed allocation and launch options.
+invoice_image=$(python3 -c 'import json;print(json.load(open("releases/development.json"))["applications"]["invoice"]["image"])')
+timeout 300 docker run --rm --platform linux/amd64 --cpus 1 --memory 2g \
+  -e D9_BACKEND=native-baseline -e D9_RUN_ID=11111111111111111111111111111111 \
+  --entrypoint pwsh "$invoice_image" -NoProfile -Command "$(cat verification/database-gate/invoice-probe.ps1)" \
+  >artifacts/database-gate/invoice-baseline.log
+python3 scripts/verify-business-runtime.py --invoice-image-report artifacts/database-gate/invoice-baseline.log
 exit "$status"

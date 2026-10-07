@@ -40,6 +40,36 @@ variable "enable_data_services" {
   }
 }
 
+variable "enable_business_runtime" {
+  description = "D/9 identities, scoped roles and manual compatibility jobs. Does not start jobs or deploy business apps."
+  type        = bool
+  default     = false
+  validation {
+    condition     = !var.enable_business_runtime || (var.enable_shared_environment && var.enable_livedocs && var.enable_data_services && var.enable_database_candidate)
+    error_message = "D/9 requires the existing shared environment, LiveDocs, business data services and Free candidates."
+  }
+}
+
+variable "enable_business_apps" {
+  description = "D/9 five business apps; local apply requires a matching successful Azure compatibility report."
+  type        = bool
+  default     = false
+  validation {
+    condition     = !var.enable_business_apps || (var.enable_business_runtime && var.enable_database_access)
+    error_message = "Business apps require D/9 identities/jobs and discovered ACA database access. Run the Azure compatibility job before rollout."
+  }
+}
+
+variable "database_gate_image" {
+  description = "Published D/9 verification image digest from the manual image-only publication workflow. No latest tag."
+  type        = string
+  default     = ""
+  validation {
+    condition     = !var.enable_business_runtime || can(regex("^mb0101/ecommerce-store-database-gate@sha256:[a-f0-9]{64}$", var.database_gate_image))
+    error_message = "Supply the immutable database-gate digest; publish the tested harness first."
+  }
+}
+
 variable "database_aca_ipv4" {
   description = "Observed ACA outbound addresses only; refresh after recreation or egress changes. No operator IP or CIDR ranges."
   type        = set(string)
