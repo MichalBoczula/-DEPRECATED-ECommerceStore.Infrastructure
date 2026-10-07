@@ -116,7 +116,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Azure database compatibility failed; keep busi
 $env:D9_DATABASE_REPORT = Join-Path $PWD 'artifacts/d9/database-proof.json'
 ```
 
-This starts one bounded manual job inside the existing ACA environment. It runs all **47** retained SQL/Mongo checks using the D/5 .NET packages and Payments source/lockfile. It creates isolated test schemas/collections, tests real migrations/readiness/transactions/change streams and cleanup, and preserves the existing application readiness contracts. It does not run business seed data or select a production backend.
+This starts one bounded manual job inside the existing ACA environment. It runs all **47** retained SQL/Mongo checks using the D/5 .NET packages and Payments source/lockfile. It creates isolated test schemas/collections, tests SQL writes/constraints, unchanged readiness, Mongo transactions/change streams and cleanup, and preserves the existing application readiness contracts. It does not run business seed data or select a production backend.
 
 Only a complete report from this exact execution and run ID, with Azure status `Succeeded`, is accepted. Native CI reports cannot satisfy the Azure gate. The local report contains fixed check labels, image/resource identities and booleans; arbitrary logs, exceptions, credentials and document payloads are withheld. It expires after 24 hours and is tied to the current subscription, candidate, release, images and outbound IP set.
 
