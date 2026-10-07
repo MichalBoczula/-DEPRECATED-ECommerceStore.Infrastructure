@@ -156,6 +156,38 @@ class BusinessPlanTests(unittest.TestCase):
         with self.assertRaises(ValueError): policy.validate(p, changes, SUB)
 
 class ProofTests(unittest.TestCase):
+    def test_source_hash_preserves_linux_order_on_windows(self):
+        import hashlib
+        from pathlib import PureWindowsPath
+
+        # Include mixed case and a directory/file prefix: both must preserve
+        # the original Linux Path order, rather than platform or string order.
+        inputs = [
+            'scripts/report-database-gate.py',
+            'verification/database-gate/Dockerfile',
+            'verification/database-gate/azure-runner.py',
+            'verification/database-gate/contracts/item.txt',
+            'verification/database-gate/contracts.json',
+        ]
+        expected = hashlib.sha256()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for relative in inputs:
+                file = root / relative
+                file.parent.mkdir(parents=True, exist_ok=True)
+                file.write_bytes(b'fixture\n')
+                expected.update(relative.encode() + b'\0fixture\n\0')
+
+            def windows_sorted(paths, **kwargs):
+                if 'key' not in kwargs:
+                    kwargs['key'] = lambda path: PureWindowsPath(str(path))
+                return sorted(paths, **kwargs)
+
+            with patch.object(verify.source, 'ROOT', root):
+                self.assertEqual(verify.source.source_hash(), expected.hexdigest())
+                with patch.object(verify.source, 'sorted', side_effect=windows_sorted, create=True):
+                    self.assertEqual(verify.source.source_hash(), expected.hexdigest())
+
     def test_source_hash_is_identical_for_windows_line_endings(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
