@@ -69,7 +69,18 @@ def validate(plan, changes, subscription):
             require(not after.get('access_policy') and re.fullmatch(r'[0-9a-f-]{36}', after['tenant_id']))
             acl = after['network_acls'][0]
             require(len(after['network_acls']) == 1 and acl['bypass'] == 'None')
-        require(acl['default_action'] == 'Deny' and acl['ip_rules'] == [])
+        require(acl['default_action'] == 'Deny')
+        if acl.get('ip_rules') is None:
+            # AzureRM's Optional+Computed set can remain unknown on first create,
+            # even with explicit ip_rules = []. Accept only that proven intent;
+            # an omitted/dynamic/rule-bearing expression must still fail closed.
+            block = 'network_rules' if kind == 'azurerm_storage_account' else 'network_acls'
+            expressions = config[address.removeprefix('module.data_services[0].')]['expressions'][block]
+            require(len(expressions) == 1 and expressions[0]['ip_rules'] == {'constant_value': []})
+            unknown = change.get('after_unknown', {}).get(block, [])
+            require(change['actions'] == ['create'] and len(unknown) == 1 and unknown[0].get('ip_rules') is True)
+        else:
+            require(acl['ip_rules'] == [])
         # The one subnet ID may still be unknown on the first create. Its source
         # reference is verified above; known readback must match the exact subnet.
         ids = acl.get('virtual_network_subnet_ids')
