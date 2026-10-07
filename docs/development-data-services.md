@@ -78,6 +78,47 @@ identifiers and naming contracts, never secret values. ARM readback does not
 prove application data-plane access. A failed readback leaves state available
 for diagnosis or teardown; it does not fall back to wider access.
 
+### Resume verification after a successful apply
+
+On 2026-10-07 the operator's 11-resource apply and D/8 ARM readback passed,
+but the older D/6 checker rejected SQL's returned SKU name `GP_S_Gen5`.
+Azure returned capacity `2`, the expected Free properties and disabled public
+database access. The checker accepts that name only for service readback;
+saved plans still require `GP_S_Gen5_2` and all Free constraints.
+
+After pulling the checker fix, retain the initialized backend and run these
+read-only checks from the repository root in the same authenticated terminal.
+No new Terraform apply is needed to repeat verification:
+
+```powershell
+$env:ARM_SUBSCRIPTION_ID = (az account show --query id --output tsv)
+if ($LASTEXITCODE -ne 0 -or -not $env:ARM_SUBSCRIPTION_ID) { throw 'Azure account read failed' }
+$readbackFile = Join-Path $env:TEMP ('ecommerce-d6-names-' + [guid]::NewGuid() + '.json')
+try {
+    $namesText = terraform '-chdir=environments/development' output -json database_candidate
+    if ($LASTEXITCODE -ne 0) { throw 'Database output read failed' }
+    [IO.File]::WriteAllText($readbackFile, ($namesText -join "`n"), [Text.UTF8Encoding]::new($false))
+    python scripts/validate-database-candidate.py $readbackFile --readback $env:ARM_SUBSCRIPTION_ID
+    if ($LASTEXITCODE -ne 0) { throw 'Free database readback failed' }
+} finally {
+    Remove-Item -LiteralPath $readbackFile -Force -ErrorAction SilentlyContinue
+}
+
+$liveText = terraform '-chdir=environments/development' output -json livedocs
+if ($LASTEXITCODE -ne 0) { throw 'LiveDocs output read failed' }
+$live = ($liveText -join "`n") | ConvertFrom-Json
+python scripts/smoke-livedocs.py $live.portal_url $live.commit_sha
+if ($LASTEXITCODE -ne 0) { throw 'LiveDocs HTTPS/source verification failed' }
+if ($env:LIVEDOCS_ARCHIVE_STORAGE_ACCOUNT -notmatch '^[a-z0-9]{3,24}$') { throw 'Restore the persistent archive account name' }
+az storage account show --subscription $env:ARM_SUBSCRIPTION_ID `
+    --resource-group rg-ecommerce-livedocs-archive `
+    --name $env:LIVEDOCS_ARCHIVE_STORAGE_ACCOUNT --output none
+if ($LASTEXITCODE -ne 0) { throw 'Persistent archive verification failed' }
+```
+
+Record the checker and smoke success summaries. These checks establish
+management settings and LiveDocs health; runtime business access remains D/9/D/12.
+
 Storage and Key Vault expose authenticated public endpoints with network ACLs
 restricted to the existing ACA subnet's service endpoints: default deny, no
 IP rules, no trusted-services bypass. Blob public access and shared keys are

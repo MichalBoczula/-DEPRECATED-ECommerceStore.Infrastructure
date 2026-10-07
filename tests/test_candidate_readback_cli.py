@@ -37,7 +37,7 @@ url = sys.argv[5]
 if '/mongoClusters/' in url:
     result = {'location':'northeurope', 'properties':{'compute':{'tier':'Free'}, 'storage':{'sizeGb':32}, 'sharding':{'shardCount':1}, 'highAvailability':{'targetMode':'Disabled'}, 'publicNetworkAccess':'Disabled'}}
 elif '/databases/' in url:
-    result = {'location':'francecentral', 'sku':{'name':'GP_S_Gen5_2','tier':'GeneralPurpose','family':'Gen5','capacity':2}, 'properties':{'useFreeLimit':True,'freeLimitExhaustionBehavior':'AutoPause','maxSizeBytes':34359738368,'requestedBackupStorageRedundancy':'Local','autoPauseDelay':60,'minCapacity':0.5,'zoneRedundant':False}}
+    result = {'location':'francecentral', 'sku':{'name':'GP_S_Gen5','tier':'GeneralPurpose','family':'Gen5','capacity':2}, 'properties':{'useFreeLimit':True,'freeLimitExhaustionBehavior':'AutoPause','maxSizeBytes':34359738368,'requestedBackupStorageRedundancy':'Local','autoPauseDelay':60,'minCapacity':0.5,'zoneRedundant':False}}
 else:
     result = {'location':'francecentral','properties':{'publicNetworkAccess':'Disabled'}}
 print(json.dumps(result))
