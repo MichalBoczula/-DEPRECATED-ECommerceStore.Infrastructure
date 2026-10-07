@@ -52,10 +52,20 @@ def envelope(name):
         module_source = (root.parents[1] / 'modules/data-services/main.tf').read_text()
         if not re.search(r'^\s*storage_account_id\s*=\s*azurerm_storage_account.business.id\s*$', module_source, re.M):
             raise ValueError('Unexpected business container parent')
+        # Empty computed ACL sets may be unknown in a real first-create plan.
+        # Reconstruct only expressions that are confirmed in the actual module.
+        acl_resources = []
+        for address, block in (('azurerm_storage_account.business', 'network_rules'),
+                               ('azurerm_key_vault.business', 'network_acls')):
+            kind, resource = address.split('.')
+            body = re.search(r'^resource "' + kind + r'" "' + resource + r'"\s*\{(.*?)^\}', module_source, re.M | re.S)
+            if not body or not re.search(r'\b' + block + r'\s*\{[^}]*?\bip_rules\s*=\s*\[\]\s*$', body.group(1), re.M):
+                raise ValueError('Expected explicit empty business IP rules')
+            acl_resources.append(dict(address=address, expressions={block: [{'ip_rules': {'constant_value': []}}]}))
         configuration['root_module']['module_calls'] = {'data_services': {
             'expressions': {'subnet_id': {'references': ['module.consumption[0].subnet_id']},
                             'tenant_id': {'references': ['data.azurerm_client_config.data_services[0].tenant_id']}},
-            'module': {'resources': [{'address': 'azurerm_storage_container.files', 'expressions': {'storage_account_id': {'references': ['azurerm_storage_account.business']}}}]}}}
+            'module': {'resources': acl_resources + [{'address': 'azurerm_storage_container.files', 'expressions': {'storage_account_id': {'references': ['azurerm_storage_account.business']}}}]}}}
     return dict(variables={key: {'value': value} for key, value in variables.items()}, configuration=configuration)
 
 if __name__ == '__main__':

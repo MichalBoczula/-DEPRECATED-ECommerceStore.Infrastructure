@@ -58,6 +58,11 @@ four network/LiveDocs resources, three database resources, and four D/8
 resources. There are no database firewall rules yet. If resources already exist,
 expect fewer creates and investigate any credential updates before applying.
 The checker rejects paid database fallback, broad ACLs and resource replacements.
+AzureRM may show Storage `ip_rules = (known after apply)` even when the source
+sets `ip_rules = []`. On first creation the checker accepts this only when the
+saved configuration proves the empty literal and the plan marks it unknown.
+Known nonempty IP rules and unresolved rules on existing resources are rejected;
+post-apply ARM readback still requires an actually empty list.
 
 ```powershell
 .\scripts\deploy-development-network.ps1 -Action apply

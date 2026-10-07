@@ -31,6 +31,9 @@ def plan(databases=False):
         'tenant_id': {'references': ['data.azurerm_client_config.data_services[0].tenant_id']}},
         'module': {'resources': [{'address': 'azurerm_storage_container.files', 'expressions': {
             'storage_account_id': {'references': ['azurerm_storage_account.business']}}}]}}}
+    resources=p['configuration']['root_module']['module_calls']['data_services']['module']['resources']
+    for address,block in (('azurerm_storage_account.business','network_rules'),('azurerm_key_vault.business','network_acls')):
+        resources.append(dict(address=address,expressions={block:[dict(ip_rules={'constant_value':[]})]}))
     acl = dict(default_action='Deny', ip_rules=[], virtual_network_subnet_ids=[EXPECTED['subnet']])
     for address, kind in policy.ADDRESSES.items():
         if kind == 'azurerm_storage_container':
@@ -73,6 +76,39 @@ class DataServicesTests(unittest.TestCase):
             with self.subTest(databases=databases):
                 self.assertEqual(network.policy.validate(plan(databases), SUB)[0]['create'], creates)
         with self.assertRaises(ValueError): network.policy.validate(plan())
+
+    def test_first_create_computed_empty_ip_rules_with_source_proof(self):
+        p=plan(True)
+        storage=next(x for x in p['resource_changes'] if x['type']=='azurerm_storage_account')
+        storage['change']['after']['network_rules'][0].update(ip_rules=None,virtual_network_subnet_ids=None)
+        storage['change']['after_unknown']={'network_rules':[dict(ip_rules=True,virtual_network_subnet_ids=True)]}
+        vault=next(x for x in p['resource_changes'] if x['type']=='azurerm_key_vault')
+        vault['change']['after']['network_acls'][0]['virtual_network_subnet_ids']=None
+        vault['change']['after_unknown']={'access_policy':True,'network_acls':[dict(virtual_network_subnet_ids=True)]}
+        self.assertEqual(network.policy.validate(p,SUB)[0]['create'],11)
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'plan.json';path.write_text(json.dumps(p))
+            result=subprocess.run([sys.executable,str(ROOT/'scripts/validate-network-plan.py'),str(path),'--verify-egress',SUB],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertIn('11 creates',result.stdout)
+
+    def test_unknown_ip_rules_need_empty_literal_create_and_unknown_marker(self):
+        for mutation in ('omitted','broad','dynamic','marker','unmarked','update','no-op','known-broad'):
+            p=plan()
+            resource=next(x for x in p['resource_changes'] if x['type']=='azurerm_storage_account')
+            resource['change']['after']['network_rules'][0]['ip_rules']=None
+            resource['change']['after_unknown']={'network_rules':[dict(ip_rules=True)]}
+            config=p['configuration']['root_module']['module_calls']['data_services']['module']['resources']
+            expression=next(x for x in config if x['address']=='azurerm_storage_account.business')['expressions']['network_rules'][0]
+            if mutation=='omitted': expression.pop('ip_rules')
+            if mutation=='broad': expression['ip_rules']={'constant_value':['1.2.3.4']}
+            if mutation=='dynamic': expression['ip_rules']={'references':['var.rules']}
+            if mutation=='marker': resource['change']['after_unknown']['network_rules'][0]['ip_rules']=False
+            if mutation=='unmarked': resource['change'].pop('after_unknown')
+            if mutation in ('update','no-op'): resource['change']['actions']=[mutation]
+            if mutation=='known-broad': resource['change']['after']['network_rules'][0]['ip_rules']=['1.2.3.4']
+            with self.subTest(mutation=mutation),self.assertRaises((ValueError,KeyError)):
+                network.policy.validate(p,SUB)
 
     def test_public_broad_wrong_parent_and_replacement_rejected(self):
         mutations = [('azurerm_storage_account', 'shared_access_key_enabled', True),
