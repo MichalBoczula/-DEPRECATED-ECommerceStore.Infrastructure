@@ -23,8 +23,13 @@ def require(value):
         raise ValueError('D/6 candidate policy rejected the plan')
 
 
-def sql_free(body):
-    require(body['sku'] == {'name': 'GP_S_Gen5_2', 'tier': 'GeneralPurpose', 'family': 'Gen5', 'capacity': 2})
+def sql_free(body, *, service_readback=False):
+    # Azure returned GP_S_Gen5 with capacity 2 for the deployed GP_S_Gen5_2.
+    # Accept that service representation only on GET; keep saved plans exact.
+    sku = dict(body['sku'])
+    if service_readback and sku.get('name') == 'GP_S_Gen5':
+        sku['name'] = 'GP_S_Gen5_2'
+    require(sku == {'name': 'GP_S_Gen5_2', 'tier': 'GeneralPurpose', 'family': 'Gen5', 'capacity': 2})
     p = body['properties']
     require(p['useFreeLimit'] is True and p['freeLimitExhaustionBehavior'] == 'AutoPause')
     require(p['maxSizeBytes'] == 34359738368 and p['requestedBackupStorageRedundancy'] == 'Local')
@@ -80,7 +85,7 @@ def validate_readback(server, database, mongo, sql_location, *, public_access_en
     sql_free({
         'sku': {key: database['sku'][key] for key in ('name', 'tier', 'family', 'capacity')},
         'properties': database['properties'],
-    })
+    }, service_readback=True)
     p = mongo['properties']
     require(p['compute']['tier'] == 'Free' and p['storage']['sizeGb'] == 32)
     require(p['sharding']['shardCount'] == 1 and p['highAvailability']['targetMode'] == 'Disabled')

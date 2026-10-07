@@ -111,6 +111,36 @@ class CandidatePolicyTests(unittest.TestCase):
                 r=readback();r[resource]['properties'][field]=value
                 with self.assertRaises(ValueError): policy.validate_readback(r['server'],r['database'],r['mongo'], 'northeurope')
 
+    def test_service_sku_name_is_accepted_only_for_readback(self):
+        r=readback();r['database']['sku']['name']='GP_S_Gen5'
+        r['server']['location']=r['database']['location']='francecentral'
+        policy.validate_readback(r['server'],r['database'],r['mongo'],'francecentral')
+        p=plan();p['resource_changes'][1]['change']['after']['body']['sku']['name']='GP_S_Gen5'
+        with self.assertRaises(ValueError): policy.validate(p)
+
+    def test_service_sku_alias_preserves_every_free_and_network_constraint(self):
+        mutations = [
+            ('sku','name','GP_Gen5'), ('sku','tier','BusinessCritical'),
+            ('sku','family','Gen4'), ('sku','capacity',4),
+            ('properties','useFreeLimit',False),
+            ('properties','freeLimitExhaustionBehavior','BillOverUsage'),
+            ('properties','maxSizeBytes',68719476736),
+            ('properties','requestedBackupStorageRedundancy','Geo'),
+            ('properties','autoPauseDelay',-1), ('properties','minCapacity',1),
+            ('properties','zoneRedundant',True),
+        ]
+        for section,field,value in mutations:
+            with self.subTest(section=section,field=field):
+                r=readback();r['database']['sku']['name']='GP_S_Gen5'
+                r['database'][section][field]=value
+                with self.assertRaises(ValueError):
+                    policy.validate_readback(r['server'],r['database'],r['mongo'],'northeurope')
+        for resource in ('server','mongo'):
+            r=readback();r['database']['sku']['name']='GP_S_Gen5'
+            r[resource]['properties']['publicNetworkAccess']='Enabled'
+            with self.assertRaises(ValueError):
+                policy.validate_readback(r['server'],r['database'],r['mongo'],'northeurope')
+
 
 class CandidateWorkflowTests(unittest.TestCase):
     def setUp(self):
