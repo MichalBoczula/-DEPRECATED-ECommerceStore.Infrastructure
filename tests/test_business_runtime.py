@@ -198,6 +198,88 @@ class BusinessPlanTests(unittest.TestCase):
         name['value'] = 'http://localhost:5000/'
         with self.assertRaises(ValueError): policy.validate(p, changes, SUB)
 
+class ArmReadbackTests(unittest.TestCase):
+    def fixture(self, apps):
+        _, changes = plan(apps)
+        metadata = dict(environment_id=data.network.ENVIRONMENT, apps_enabled=apps,
+            apps={key: dict(name='ca-ecommerce-dev-' + key, url=URLS[key],
+                image=RELEASE['applications'][key]['image'], identity_id=identity(key))
+                for key in policy.APPS},
+            gate=dict(name='job-ecommerce-dev-database-gate', image=IMAGE),
+            invoice_probe=dict(name='job-ecommerce-dev-invoice-probe',
+                image=RELEASE['applications']['invoice']['image']),
+            candidate=dict(sql_server='sql-ecommerce-dev-d6-reviewd7',
+                mongo_cluster='mongo-ecommerce-dev-d6-reviewd7'))
+        resources = {}
+        for change in changes:
+            after = change['change']['after']
+            if change['type'] not in ('azurerm_container_app', 'azurerm_container_app_job'):
+                continue
+            container = copy.deepcopy(after['template'][0]['container'][0])
+            container['resources'] = dict(cpu=container.pop('cpu'), memory=container.pop('memory'))
+            for item in container['env']:
+                if 'secret_name' in item:
+                    item['secretRef'] = item.pop('secret_name')
+            cfg = {'secrets': [dict(name=item['name'], identity=item['identity'],
+                    keyVaultUrl=item['key_vault_secret_id']) for item in after.get('secret', [])]}
+            template = {'containers': [container]}
+            if change['type'] == 'azurerm_container_app_job':
+                cfg.update(triggerType='Manual', replicaRetryLimit=after['replica_retry_limit'],
+                    replicaTimeout=after['replica_timeout_in_seconds'],
+                    manualTriggerConfig=dict(parallelism=after['manual_trigger_config'][0]['parallelism'],
+                        replicaCompletionCount=after['manual_trigger_config'][0]['replica_completion_count']))
+            else:
+                key = container['name']
+                cfg['ingress'] = dict(external=key == 'bff', allowInsecure=False,
+                    targetPort=8080, fqdn=URLS[key].removeprefix('https://'))
+                template['scale'] = dict(minReplicas=0, maxReplicas=1)
+            resource = dict(properties=dict(provisioningState='Succeeded',
+                environmentId=metadata['environment_id'], workloadProfileName='Consumption',
+                configuration=cfg, template=template))
+            if after.get('identity'):
+                resource['identity'] = dict(type='UserAssigned',
+                    userAssignedIdentities={value: {} for value in after['identity'][0]['identity_ids']})
+            resources[after['name']] = resource
+        return metadata, resources
+
+    def verify(self, metadata, resources):
+        with patch.object(verify.network.egress, 'arm_get',
+                side_effect=lambda path, version: resources[path.rsplit('/', 1)[-1]]):
+            return verify.verify_arm(metadata, SUB)
+
+    def test_staged_and_deployed_arm_identity_casing_is_accepted(self):
+        for apps in (False, True):
+            for casing in ('original', 'lower', 'upper'):
+                metadata, resources = self.fixture(apps)
+                for resource in resources.values():
+                    if 'identity' in resource:
+                        ids = resource['identity']['userAssignedIdentities']
+                        resource['identity']['userAssignedIdentities'] = {
+                            (key if casing == 'original' else getattr(key, casing)()): value
+                            for key, value in ids.items()}
+                with self.subTest(apps=apps, casing=casing):
+                    self.assertEqual(set(self.verify(metadata, resources)), {'gate', 'invoice_probe'})
+
+    def test_missing_wrong_and_extra_identities_remain_rejected(self):
+        for target in ('job-ecommerce-dev-database-gate', 'ca-ecommerce-dev-products'):
+            for mutation in ('missing', 'wrong_name', 'wrong_group', 'wrong_subscription', 'extra', 'case_duplicate'):
+                metadata, resources = self.fixture(True)
+                resource = resources[target]
+                ids = resource['identity']['userAssignedIdentities']
+                expected = next(iter(ids))
+                if mutation == 'missing': ids.clear()
+                if mutation == 'wrong_name':
+                    resource['identity']['userAssignedIdentities'] = {expected + '-other': {}}
+                if mutation == 'wrong_group':
+                    resource['identity']['userAssignedIdentities'] = {expected.replace('rg-ecommerce-dev', 'rg-other'): {}}
+                if mutation == 'wrong_subscription':
+                    resource['identity']['userAssignedIdentities'] = {expected.replace(SUB, '22222222-2222-2222-2222-222222222222'): {}}
+                if mutation == 'extra': ids[expected + '-other'] = {}
+                if mutation == 'case_duplicate': ids[expected.lower()] = {}
+                with self.subTest(target=target, mutation=mutation), self.assertRaises(ValueError):
+                    self.verify(metadata, resources)
+
+
 class ProofTests(unittest.TestCase):
     def test_source_hash_preserves_linux_order_on_windows(self):
         import hashlib

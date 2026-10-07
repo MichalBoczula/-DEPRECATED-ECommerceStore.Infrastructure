@@ -119,6 +119,14 @@ def read_output(name):
         capture_output=True, text=True, check=True, timeout=120).stdout)
 
 
+def verify_identity(resource, expected_id):
+    # ARM can return resourcegroups while Terraform uses resourceGroups.
+    # Keep exact identity membership/cardinality; only casing may differ.
+    identities = resource['identity']['userAssignedIdentities']
+    require(isinstance(identities, dict) and len(identities) == 1)
+    require(next(iter(identities)).lower() == expected_id.lower())
+
+
 def verify_arm(metadata, subscription):
     root = f'/subscriptions/{subscription}/resourceGroups/rg-ecommerce-dev/providers/Microsoft.App/'
     require(metadata['environment_id'].lower() == (root + 'managedEnvironments/cae-ecommerce-dev').lower())
@@ -141,7 +149,7 @@ def verify_arm(metadata, subscription):
             require(template['scale']['minReplicas'] == 0 and template['scale']['maxReplicas'] == 1 and len(template['containers']) == 1)
             container = template['containers'][0]
             require(container['image'] == app['image'] and container['resources']['cpu'] == network.business.ALLOCATIONS[key][0] and container['resources']['memory'] == network.business.ALLOCATIONS[key][1])
-            require(set(resource['identity']['userAssignedIdentities']) == {app['identity_id']})
+            verify_identity(resource, app['identity_id'])
             env = {item['name']: item for item in container['env']}
             for name, value in network.business.plain_env(key, {k: v['url'] for k, v in metadata['apps'].items()}).items():
                 require(env[name]['value'] == value and not env[name].get('secretRef'))
@@ -173,7 +181,7 @@ def verify_arm(metadata, subscription):
             require(env['D6_MONGO_HOST']['value'] == metadata['candidate']['mongo_cluster'] + '.mongocluster.cosmos.azure.com')
             require(json.loads(env['D9_APPS']['value']) == {k: v['url'] for k, v in metadata['apps'].items()})
             identity = names['root'] + 'Microsoft.ManagedIdentity/userAssignedIdentities/id-ecommerce-dev-gate'
-            require(set(job['identity']['userAssignedIdentities']) == {identity})
+            verify_identity(job, identity)
             secrets = {item['name']: item for item in cfg['secrets']}
             require(set(secrets) == {'sql', 'mongo'})
             for secret, field, key_name in [('sql', 'D6_SQL_CONNECTION_STRING', 'products'), ('mongo', 'D6_MONGO_CONNECTION_STRING', 'users')]:
