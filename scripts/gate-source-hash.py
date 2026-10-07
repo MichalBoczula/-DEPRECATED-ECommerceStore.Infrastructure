@@ -11,7 +11,9 @@ def source_hash():
     paths.extend(path for path in base.rglob('*') if path.is_file()
                  and not set(path.relative_to(base).parts) & {'bin', 'obj', '__pycache__'})
     digest = hashlib.sha256()
-    for path in sorted(paths):
+    # Path ordering is case-insensitive on Windows. Use case-sensitive relative
+    # components everywhere, preserving the order used by published Linux images.
+    for path in sorted(paths, key=lambda path: path.relative_to(ROOT).parts):
         # Git for Windows may check out CRLF; all retained build inputs are text.
         # Hash normalized text so the same source verifies on Windows and Linux.
         digest.update(path.relative_to(ROOT).as_posix().encode() + b'\0' + path.read_text(encoding='utf-8').encode() + b'\0')
