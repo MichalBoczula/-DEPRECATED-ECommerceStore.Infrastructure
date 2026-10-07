@@ -65,7 +65,10 @@ scripts from this terminal: they enforce runner/OIDC configuration.
 
 Keep the candidate enabled and its passwords available. After D/7, also retain
 the shared-environment/LiveDocs/access flags and ignored egress-IP file until
-teardown completes. Restore the actual deployment inputs instead of copying
+teardown completes. After D/9, also retain `enable_data_services`,
+`enable_business_runtime`, `enable_business_apps` and `database_gate_image`
+at their deployed values. Use the local operator with development-group
+role-assignment delete permission to remove the D/9 roles. Restore the actual deployment inputs instead of copying
 the database-only flags above over an existing D/7 environment. This complete-state
 destroy also removes any state-owned LiveDocs/network resources if present.
 Before D/7, the database-only environment contained these three managed

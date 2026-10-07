@@ -7,13 +7,77 @@ mock_provider "azurerm" {
     }
   }
   mock_resource "azurerm_container_app_environment" {
+    override_during = plan
     defaults = {
-      id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-ecommerce-dev/providers/Microsoft.App/managedEnvironments/cae-ecommerce-dev"
+      id             = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-ecommerce-dev/providers/Microsoft.App/managedEnvironments/cae-ecommerce-dev"
+      default_domain = "mock-domain.northeurope.azurecontainerapps.io"
     }
   }
   mock_resource "azurerm_subnet" {
     defaults = { id = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-ecommerce-dev/providers/Microsoft.Network/virtualNetworks/vnet-ecommerce-dev/subnets/aca" }
   }
+}
+
+run "business_stage" {
+  command = plan
+  variables {
+    enable_shared_environment = true
+    enable_livedocs           = true
+    enable_database_candidate = true
+    enable_data_services      = true
+    enable_business_runtime   = true
+    database_gate_image       = "mb0101/ecommerce-store-database-gate@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    candidate_suffix          = "reviewd7"
+    candidate_sql_location    = "francecentral"
+    candidate_sql_password    = "MockOnly-NotASecret-123!"
+    candidate_mongo_password  = "MockOnly-NotASecret-456!"
+  }
+  assert {
+    condition     = length(azurerm_user_assigned_identity.business) == 6 && length(azurerm_role_assignment.business_secret) == 6 && length(azurerm_role_assignment.business_blob) == 2 && length(azurerm_container_app.business) == 0 && length(azurerm_container_app_job.database_gate) == 1 && length(azurerm_container_app_job.invoice_probe) == 1
+    error_message = "Stage bounded jobs and narrow identities without launching business apps."
+  }
+}
+
+run "business_apps" {
+  command = plan
+  variables {
+    enable_shared_environment = true
+    enable_livedocs           = true
+    enable_database_candidate = true
+    enable_database_access    = true
+    database_aca_ipv4         = ["20.40.60.80", "20.40.60.81"]
+    enable_data_services      = true
+    enable_business_runtime   = true
+    enable_business_apps      = true
+    database_gate_image       = "mb0101/ecommerce-store-database-gate@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    candidate_suffix          = "reviewd7"
+    candidate_sql_location    = "francecentral"
+    candidate_sql_password    = "MockOnly-NotASecret-123!"
+    candidate_mongo_password  = "MockOnly-NotASecret-456!"
+  }
+  assert {
+    condition     = length(azurerm_container_app.business) == 5 && azurerm_container_app.business["bff"].ingress[0].external_enabled && alltrue([for app, resource in azurerm_container_app.business : !resource.ingress[0].external_enabled if app != "bff"])
+    error_message = "Deploy exactly five apps with only BFF public business ingress."
+  }
+  assert {
+    condition     = alltrue([for resource in azurerm_container_app.business : resource.template[0].min_replicas == 0 && resource.template[0].max_replicas == 1 && resource.workload_profile_name == "Consumption"]) && azurerm_container_app.business["invoice"].template[0].container[0].memory == "2Gi"
+    error_message = "Preserve scale-to-zero and Invoice browser allocation."
+  }
+}
+
+run "business_apps_without_runtime_rejected" {
+  command = plan
+  variables { enable_business_apps = true }
+  expect_failures = [var.enable_business_apps]
+}
+
+run "business_runtime_without_foundation_rejected" {
+  command = plan
+  variables {
+    enable_business_runtime = true
+    database_gate_image     = "mb0101/ecommerce-store-database-gate@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+  expect_failures = [var.enable_business_runtime]
 }
 mock_provider "azapi" {}
 

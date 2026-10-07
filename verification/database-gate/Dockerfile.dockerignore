@@ -1,0 +1,12 @@
+/.git
+**/.terraform
+**/bin
+**/obj
+**/__pycache__
+/artifacts/database-gate/payments/.venv
+/artifacts/database-gate/*.json
+/artifacts/database-gate/*.log
+/artifacts/d9
+*.tfplan
+*.tfstate*
+*.tfvars*

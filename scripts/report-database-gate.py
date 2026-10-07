@@ -28,6 +28,10 @@ PAYMENTS_CHECKS = {'source_driver_and_endpoint'} | PAYMENTS_CASES | {
 
 
 def validate_suite(item, mode, index):
+    fields = {'backend', 'passed', 'backendSelected', 'checks'} | (
+        {'drivers'} if index == 0 else {'repository', 'commitSha', 'pymongo'})
+    if set(item) != fields:
+        raise ValueError()
     if item['backend'] != mode or item['backendSelected'] is not False or type(item['passed']) is not bool:
         raise ValueError()
     expected = DOTNET_CHECKS if index == 0 else PAYMENTS_CHECKS
